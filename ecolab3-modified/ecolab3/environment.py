@@ -1,3 +1,11 @@
+"""
+Code adapted from
+- Author: Mike Croucher
+- Environment.py
+- Source code for ecolab3 python version
+- Source: https://github.com/lionfish0/ecolab3.git
+"""
+
 from re import S
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,20 +18,23 @@ def argmax_2darray(a):
     return np.unravel_index(a.argmax(), a.shape)
 
 class Environment:
-    def __init__(self,shape=[40,40],startgrass=1,maxgrass=3,growrate=10, max_percentage = 0, rain_intensity = 0, percentage_dry = 0):
+    def __init__(self,shape=[40,40],startfood=1,maxfood=3,droprate=10, max_percentage = 0, rain_intensity = 0, percentage_dry = 0):
         """
         Create the environment
         Parameters:
          - shape = shape of the environment
-         - startgrass = initial amount of grass
-         - maxgrass = maximum amount of grass allowed in each tile
-         - growrate = number of tiles which get extra grass each iteration
+         - startfood = initial amount of food
+         - maxfood = maximum amount of food allowed in each tile
+         - droprate = number of tiles which get extra grass each iteration
+         - max_percentage = percentage of wetlands to be able to exist at most
+         - rain_intensity = intensity of rain which will also decide how much wetlands will be formed
+         - percentage_dry = probability of wetlands turning to dry lands
         """
         self.rain_intensity = rain_intensity # set rain intensity to randomized the wet land formed and pheromone to reduce depending on the rain intensity
-        self.maxgrass = maxgrass #maximum it can grow to
-        self.growrate = growrate #how many new items of food added per step
+        self.maxfood = maxfood #maximum it can grow to
+        self.droprate = droprate #how many new items of food added per step
         self.shape = shape #shape of the environment
-        self.grass = np.full(self.shape,startgrass) #2*np.trunc(np.random.rand(*self.shape)*2)+2 #initial grass
+        self.food = np.full(self.shape,startfood) #2*np.trunc(np.random.rand(*self.shape)*2)+2 #initial food
         self.pheromone = np.zeros(self.shape) #set all pheromone trail as zero initially
         self.env_status = np.zeros(self.shape) #0 being dry land and 1 being wet land, Initialised all as wet land
         self.max_percentage = max_percentage #decide the max number of wet lands to be produced
@@ -115,38 +126,40 @@ class Environment:
         """
         Reduce the amount of pheromone at position by amount with 0 being the least it can be reduced to
         """
-        if (self.grass[int(position[0]),int(position[1])] == 0):
-            self.grass[int(position[0]),int(position[1])] = 0
-        elif ((self.grass[int(position[0]),int(position[1])] - amount) < 0):
-            self.grass[int(position[0]),int(position[1])] = 0
+        if (self.pheromone[int(position[0]),int(position[1])] == 0):
+            self.pheromone[int(position[0]),int(position[1])] = 0
+        elif ((self.pheromone[int(position[0]),int(position[1])] - amount) < 0):
+            self.pheromone[int(position[0]),int(position[1])] = 0
         else:
-            self.grass[int(position[0]),int(position[1])] -= amount
+            self.pheromone[int(position[0]),int(position[1])] -= amount
 
     def increase_pheromone(self, position, amount):
         """
         Increase the amount of pheromone at position by amount with 1 being the most it can be increased to
         """
-        if (self.grass[int(position[0]),int(position[1])] == 1):
-            self.grass[int(position[0]),int(position[1])] = 1
-        elif ((self.grass[int(position[0]),int(position[1])] + amount) > 1):
-            self.grass[int(position[0]),int(position[1])] = 1
+        if (self.pheromone[int(position[0]),int(position[1])] == 1):
+            self.pheromone[int(position[0]),int(position[1])] = 1
+        elif ((self.pheromone[int(position[0]),int(position[1])] + amount) > 1):
+            self.pheromone[int(position[0]),int(position[1])] = 1
         else:
-            self.grass[int(position[0]),int(position[1])] += amount
+            self.pheromone[int(position[0]),int(position[1])] += amount
 
     def get_food(self,position):
         """
         Returns the amount of food at position
         """
-        return self.grass[int(position[0]),int(position[1])]
+        return self.food[int(position[0]),int(position[1])]
     
     def reduce_food(self,position,amount=1):
         """
         Reduce the amount of food at position by amount
         (note, doesn't check this doesn't go negative)
         """
-        self.grass[int(position[0]),int(position[1])]-=amount
+        if self.get_food(position) > 0:
+            self.food[int(position[0]),int(position[1])]-=amount
     
-    def get_loc_of_grass(self,position,vision):
+
+    def get_loc_of_food(self,position,vision):
         """
         This finds the location of the cell with the maximum amount of food near 'pos',
         within a circle of 'vision' size.
@@ -154,20 +167,19 @@ class Environment:
         if two or more cells have the same food then it will select between them randomly.
         """
         
-        #we temporarily build a new datastructure to look for the largest grass in with a
+        #we temporarily build a new datastructure to look for the largest food in with a
         #strip/boundary around the edge of zero food. This feels like the simplest code
         #to solve the edge case problem, but is quite a slow solution.
         boundary = 10
         pos = position + boundary
-        grasswithboundary = np.zeros(np.array(self.grass.shape)+boundary*2)
-        grasswithboundary[boundary:-boundary,boundary:-boundary] = self.grass
+        foodwithboundary = np.zeros(np.array(self.food.shape)+boundary*2)
+        foodwithboundary[boundary:-boundary,boundary:-boundary] = self.food
         #we search just a circle within 'vision' tiles of 'pos' (these two commands build that search square)
-        searchsquare = grasswithboundary[int(pos[0]-vision):int(pos[0]+vision+1),int(pos[1]-vision):int(pos[1]+vision+1)]
+        searchsquare = foodwithboundary[int(pos[0]-vision):int(pos[0]+vision+1),int(pos[1]-vision):int(pos[1]+vision+1)]
         searchsquare[(np.arange(-vision,vision+1)[:,None]**2 + np.arange(-vision,vision+1)[None,:]**2)>vision**2]=-1
         #this returns the location of that maximum food (with randomness added to equally weight same-food cells)         
         if np.all(searchsquare<=0): return None #no food found
         return argmax_2darray(searchsquare+0.01*np.random.rand(vision*2+1,vision*2+1))+position-vision
-        
 
     def check_position(self,position):
         """
@@ -189,7 +201,7 @@ class Environment:
         """
         return np.random.randint([0,0],self.shape)
         
-        #if we have a more complicated environment shape, use this instead to place new grass in valid location...
+        #if we have a more complicated environment shape, use this instead to place new food in valid location...
         #p = np.array([-10,-10])
         #while not self.check_position(p):
         #    p = np.random.randint([0,0],self.shape)
@@ -197,10 +209,10 @@ class Environment:
     
     def grow(self):
         """
-        Adds more grass (random locations) 
+        Adds more food (random locations) 
          - amount added controlled by self.growrate
         """
-        for it in range(self.growrate):
+        for it in range(self.droprate):
             loc = self.get_random_location()
-            if self.grass[loc[0],loc[1]]<self.maxgrass:
-                self.grass[loc[0],loc[1]]+=1
+            if self.food[loc[0],loc[1]]<self.maxfood:
+                self.food[loc[0],loc[1]]+=1
