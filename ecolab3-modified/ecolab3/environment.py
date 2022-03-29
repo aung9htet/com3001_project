@@ -1,3 +1,4 @@
+from re import S
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -9,7 +10,7 @@ def argmax_2darray(a):
     return np.unravel_index(a.argmax(), a.shape)
 
 class Environment:
-    def __init__(self,shape=[40,40],startgrass=1,maxgrass=3,growrate=10):
+    def __init__(self,shape=[40,40],startgrass=1,maxgrass=3,growrate=10, max_percentage = 0, rain_intensity = 0, percentage_dry = 0):
         """
         Create the environment
         Parameters:
@@ -18,13 +19,120 @@ class Environment:
          - maxgrass = maximum amount of grass allowed in each tile
          - growrate = number of tiles which get extra grass each iteration
         """
-        self.pheromone = 0
+        self.rain_intensity = rain_intensity # set rain intensity to randomized the wet land formed and pheromone to reduce depending on the rain intensity
         self.maxgrass = maxgrass #maximum it can grow to
         self.growrate = growrate #how many new items of food added per step
         self.shape = shape #shape of the environment
         self.grass = np.full(self.shape,startgrass) #2*np.trunc(np.random.rand(*self.shape)*2)+2 #initial grass
+        self.pheromone = np.zeros(self.shape) #set all pheromone trail as zero initially
+        self.env_status = np.zeros(self.shape) #0 being dry land and 1 being wet land, Initialised all as wet land
+        self.max_percentage = max_percentage #decide the max number of wet lands to be produced
+        self.percentage_dry = percentage_dry #decide to change wet land to dry
 
-        
+    def get_rain_intensity(self):
+        """
+        Returns rain intensity
+        """
+        return self.rain_intensity
+
+    def set_rain_intensity(self, intensity):
+        """
+        Set rain intensity
+        """
+        self.rain_intensity = intensity
+    
+    def change_env_rain(self):
+        """
+        Change the wet lands randomly depending on the intensity of the rain
+        """
+        intensity = self.get_rain_intensity
+        row = len(self.env_status)
+        column = len(self.env_status[0]) #column is going to be same for every row
+        number_of_blocks = row * column
+        max_n_wet = intensity * self.max_percentage * number_of_blocks #decide max number of wet land blocks
+        #count number of wet blocks currently
+        counter = 0
+        for x in self.env_status:
+            counter += x.count(1)
+        #generate wet lands if it is not at max limit
+        n_generate_wet = 0
+        if (counter < max_n_wet):
+            n_generate_wet = np.random.randint(max_n_wet - counter)
+            for i in range(n_generate_wet):
+                valid_change = False
+                while (valid_change == False):
+                    n_row = np.random.randint(row)
+                    n_column = np.random.randint(column)
+                    if self.env_status[n_row,n_column] == 0:
+                        valid_change = True
+                self.set_env_rain[n_row,n_column]
+
+    def change_env_dry(self):
+        """
+        Change wet lands to dry lands with a default percentage
+        """
+        for row in self.env_status:
+            for current_unit in row:
+                if current_unit == 1:
+                    change_dry = np.random.rand()
+                    if change_dry <= self.percentage_dry:
+                        current_unit = 0 #changed to dry
+
+    def get_env_status(self, position):
+        """
+        Returns the environment status
+        """
+        return self.env_status[int(position[0]),int(position[1])]
+
+    def change_env_status(self, position):
+        """
+        Change the status of land
+        """
+        if (self.env_status[int(position[0]),int(position[1])] == 1):
+            self.env_status[int(position[0]),int(position[1])] = 0
+        else:
+            self.env_status[int(position[0]),int(position[1])] = 1
+
+    def set_env_rain(self, position):
+        """
+        Set status of land to rain
+        """
+        self.env_status[int(position[0]),int(position[1])] = 1
+    
+    def set_env_dry(self, position):
+        """
+        Set status of land to dry
+        """
+        self.env_status[int(position[0]),int(position[1])] = 0
+
+    def get_pheromone(self, position):
+        """
+        Returns the pheromone amount at that point
+        """
+        return self.pheromone[int(position[0]),int(position[1])]
+
+    def reduce_pheromone(self, position, amount):
+        """
+        Reduce the amount of pheromone at position by amount with 0 being the least it can be reduced to
+        """
+        if (self.grass[int(position[0]),int(position[1])] == 0):
+            self.grass[int(position[0]),int(position[1])] = 0
+        elif ((self.grass[int(position[0]),int(position[1])] - amount) < 0):
+            self.grass[int(position[0]),int(position[1])] = 0
+        else:
+            self.grass[int(position[0]),int(position[1])] -= amount
+
+    def increase_pheromone(self, position, amount):
+        """
+        Increase the amount of pheromone at position by amount with 1 being the most it can be increased to
+        """
+        if (self.grass[int(position[0]),int(position[1])] == 1):
+            self.grass[int(position[0]),int(position[1])] = 1
+        elif ((self.grass[int(position[0]),int(position[1])] + amount) > 1):
+            self.grass[int(position[0]),int(position[1])] = 1
+        else:
+            self.grass[int(position[0]),int(position[1])] += amount
+
     def get_food(self,position):
         """
         Returns the amount of food at position
