@@ -18,23 +18,25 @@ def argmax_2darray(a):
     return np.unravel_index(a.argmax(), a.shape)
 
 class Environment:
-    def __init__(self,shape=[40,40],startfood=1,maxfood=3,droprate=10, max_percentage = 0, rain_intensity = 0, percentage_dry = 0):
+    def __init__(self,shape=[40,40],startfood=30,maxfood=40,maxfoodperunit = 10,droprate=10, max_percentage = 0, rain_intensity = 0, percentage_dry = 0):
         """
         Create the environment
         Parameters:
          - shape = shape of the environment
-         - startfood = initial amount of food
-         - maxfood = maximum amount of food allowed in each tile
+         - startfood = initial amount of food to be started on the map rounded to nearest 10
+         - maxfood = maximum amount of food allowed in the whole map rounded to nearest 10
          - droprate = number of tiles which get extra grass each iteration
          - max_percentage = percentage of wetlands to be able to exist at most
          - rain_intensity = intensity of rain which will also decide how much wetlands will be formed
          - percentage_dry = probability of wetlands turning to dry lands
         """
         self.rain_intensity = rain_intensity # set rain intensity to randomized the wet land formed and pheromone to reduce depending on the rain intensity
-        self.maxfood = maxfood #maximum it can grow to
+        self.maxfood = round(maxfood/10)*10 #maximum it can grow to, should be in increments of 10
         self.droprate = droprate #how many new items of food added per step
         self.shape = shape #shape of the environment
-        self.food = np.full(self.shape,startfood) #2*np.trunc(np.random.rand(*self.shape)*2)+2 #initial food
+        self.maxfoodperunit = round(maxfoodperunit/10)*10 #decide the max food size per unit
+        self.startfood = round(startfood/10)*10 #starting point of food, should be in increments of 10
+        self.food = np.zeros(self.shape) #will be randomised later on map
         self.pheromone = np.zeros(self.shape) #set all pheromone trail as zero initially
         self.env_status = np.zeros(self.shape) #0 being dry land and 1 being wet land, Initialised all as wet land
         self.max_percentage = max_percentage #decide the max number of wet lands to be produced
@@ -157,7 +159,6 @@ class Environment:
         """
         if self.get_food(position) > 0:
             self.food[int(position[0]),int(position[1])]-=amount
-    
 
     def get_loc_of_food(self,position,vision):
         """
@@ -181,6 +182,22 @@ class Environment:
         if np.all(searchsquare<=0): return None #no food found
         return argmax_2darray(searchsquare+0.01*np.random.rand(vision*2+1,vision*2+1))+position-vision
 
+    def randomise_food_initially(self):
+        """
+        Puts food randomly on the map with size that is random
+        """
+        row = len(self.env_status)
+        column = len(self.env_status[0]) #column is going to be same for every row
+        for i in range(self.startfood/10):
+            dropped_successfully = False
+            while (dropped_successfully == False):
+                n_row = np.random.randint(row)
+                n_column = np.random.randint(column)
+                #add food to unit if the added size will be less than the maximum allowed food to each unit area
+                if ((self.food[n_row, n_column] - self.maxfoodperunit) >= 10):
+                    self.food[n_row, n_column] += self.droprate
+                    dropped_successfully = True
+        
     def check_position(self,position):
         """
         Returns whether the position is within the environment
@@ -194,7 +211,17 @@ class Environment:
         #this adds a 'wall' across the environment...
         #if (position[1]>5) and (position[0]>self.shape[0]/2-3) and (position[0]<self.shape[0]/2+3): return False
         return True
-            
+    
+    def move_food(self, direction, unit):
+        """
+        Change the position of food
+         - direction = the direction in which food will move
+            - N = up
+            - E = right
+            - S = down
+            - W = left
+         - unit = the number of units in which the food will move to
+        """
     def get_random_location(self):
         """
         Returns a random location in the environment.
