@@ -10,12 +10,14 @@ from re import S
 import numpy as np
 import matplotlib.pyplot as plt
 
-#helper function
+
+# helper function
 def argmax_2darray(a):
     """
     Returns the maximum location in a n-d array
     """
     return np.unravel_index(a.argmax(), a.shape)
+
 
 class Environment:
     def __init__(self,shape=[40,40],startfood=30,maxfood=40,maxfoodperunit = 10,droprate=10, max_percentage = 0, rain_intensity = 0, percentage_dry = 0):
@@ -53,21 +55,21 @@ class Environment:
         Set rain intensity
         """
         self.rain_intensity = intensity
-    
+
     def change_env_rain(self):
         """
         Change the wet lands randomly depending on the intensity of the rain
         """
         intensity = self.get_rain_intensity
         row = len(self.env_status)
-        column = len(self.env_status[0]) #column is going to be same for every row
+        column = len(self.env_status[0])  # column is going to be same for every row
         number_of_blocks = row * column
-        max_n_wet = intensity * self.max_percentage * number_of_blocks #decide max number of wet land blocks
-        #count number of wet blocks currently
+        max_n_wet = intensity * self.max_percentage * number_of_blocks  # decide max number of wet land blocks
+        # count number of wet blocks currently
         counter = 0
         for x in self.env_status:
             counter += x.count(1)
-        #generate wet lands if it is not at max limit
+        # generate wet lands if it is not at max limit
         n_generate_wet = 0
         if (counter < max_n_wet):
             n_generate_wet = np.random.randint(max_n_wet - counter)
@@ -76,9 +78,9 @@ class Environment:
                 while (valid_change == False):
                     n_row = np.random.randint(row)
                     n_column = np.random.randint(column)
-                    if self.env_status[n_row,n_column] == 0:
+                    if self.env_status[n_row, n_column] == 0:
                         valid_change = True
-                self.set_env_rain[n_row,n_column]
+                self.set_env_rain[n_row, n_column]
 
     def change_env_dry(self):
         """
@@ -89,98 +91,100 @@ class Environment:
                 if current_unit == 1:
                     change_dry = np.random.rand()
                     if change_dry <= self.percentage_dry:
-                        current_unit = 0 #changed to dry
+                        current_unit = 0  # changed to dry
 
     def get_env_status(self, position):
         """
         Returns the environment status
         """
-        return self.env_status[int(position[0]),int(position[1])]
+        return self.env_status[int(position[0]), int(position[1])]
 
     def change_env_status(self, position):
         """
         Change the status of land
         """
-        if (self.env_status[int(position[0]),int(position[1])] == 1):
-            self.env_status[int(position[0]),int(position[1])] = 0
+        if (self.env_status[int(position[0]), int(position[1])] == 1):
+            self.env_status[int(position[0]), int(position[1])] = 0
         else:
-            self.env_status[int(position[0]),int(position[1])] = 1
+            self.env_status[int(position[0]), int(position[1])] = 1
 
     def set_env_rain(self, position):
         """
         Set status of land to rain
         """
-        self.env_status[int(position[0]),int(position[1])] = 1
-    
+        self.env_status[int(position[0]), int(position[1])] = 1
+
     def set_env_dry(self, position):
         """
         Set status of land to dry
         """
-        self.env_status[int(position[0]),int(position[1])] = 0
+        self.env_status[int(position[0]), int(position[1])] = 0
 
     def get_pheromone(self, position):
         """
         Returns the pheromone amount at that point
         """
-        return self.pheromone[int(position[0]),int(position[1])]
+        return self.pheromone[int(position[0]), int(position[1])]
 
     def reduce_pheromone(self, position, amount):
         """
         Reduce the amount of pheromone at position by amount with 0 being the least it can be reduced to
         """
-        if (self.pheromone[int(position[0]),int(position[1])] == 0):
-            self.pheromone[int(position[0]),int(position[1])] = 0
-        elif ((self.pheromone[int(position[0]),int(position[1])] - amount) < 0):
-            self.pheromone[int(position[0]),int(position[1])] = 0
+        if (self.pheromone[int(position[0]), int(position[1])] == 0):
+            self.pheromone[int(position[0]), int(position[1])] = 0
+        elif ((self.pheromone[int(position[0]), int(position[1])] - amount) < 0):
+            self.pheromone[int(position[0]), int(position[1])] = 0
         else:
-            self.pheromone[int(position[0]),int(position[1])] -= amount
+            self.pheromone[int(position[0]), int(position[1])] -= amount
 
     def increase_pheromone(self, position, amount):
         """
         Increase the amount of pheromone at position by amount with 1 being the most it can be increased to
         """
-        if (self.pheromone[int(position[0]),int(position[1])] == 1):
-            self.pheromone[int(position[0]),int(position[1])] = 1
-        elif ((self.pheromone[int(position[0]),int(position[1])] + amount) > 1):
-            self.pheromone[int(position[0]),int(position[1])] = 1
+        if (self.pheromone[int(position[0]), int(position[1])] == 1):
+            self.pheromone[int(position[0]), int(position[1])] = 1
+        elif ((self.pheromone[int(position[0]), int(position[1])] + amount) > 1):
+            self.pheromone[int(position[0]), int(position[1])] = 1
         else:
-            self.pheromone[int(position[0]),int(position[1])] += amount
+            self.pheromone[int(position[0]), int(position[1])] += amount
 
-    def get_food(self,position):
+    def get_food(self, position):
         """
         Returns the amount of food at position
         """
-        return self.food[int(position[0]),int(position[1])]
-    
-    def reduce_food(self,position,amount=1):
+        return self.food[int(position[0]), int(position[1])]
+
+    def reduce_food(self, position, amount=1):
         """
         Reduce the amount of food at position by amount
         (note, doesn't check this doesn't go negative)
         """
         if self.get_food(position) > 0:
-            self.food[int(position[0]),int(position[1])]-=amount
+            self.food[int(position[0]), int(position[1])] -= amount
 
-    def get_loc_of_food(self,position,vision):
+    def get_loc_of_food(self, position, vision):
         """
         This finds the location of the cell with the maximum amount of food near 'pos',
         within a circle of 'vision' size.
         For example env.get_dir_of_food(np.array([3,3]),2)
         if two or more cells have the same food then it will select between them randomly.
         """
-        
-        #we temporarily build a new datastructure to look for the largest food in with a
-        #strip/boundary around the edge of zero food. This feels like the simplest code
-        #to solve the edge case problem, but is quite a slow solution.
+
+        # we temporarily build a new datastructure to look for the largest food in with a
+        # strip/boundary around the edge of zero food. This feels like the simplest code
+        # to solve the edge case problem, but is quite a slow solution.
         boundary = 10
         pos = position + boundary
-        foodwithboundary = np.zeros(np.array(self.food.shape)+boundary*2)
-        foodwithboundary[boundary:-boundary,boundary:-boundary] = self.food
-        #we search just a circle within 'vision' tiles of 'pos' (these two commands build that search square)
-        searchsquare = foodwithboundary[int(pos[0]-vision):int(pos[0]+vision+1),int(pos[1]-vision):int(pos[1]+vision+1)]
-        searchsquare[(np.arange(-vision,vision+1)[:,None]**2 + np.arange(-vision,vision+1)[None,:]**2)>vision**2]=-1
-        #this returns the location of that maximum food (with randomness added to equally weight same-food cells)         
-        if np.all(searchsquare<=0): return None #no food found
-        return argmax_2darray(searchsquare+0.01*np.random.rand(vision*2+1,vision*2+1))+position-vision
+        foodwithboundary = np.zeros(np.array(self.food.shape) + boundary * 2)
+        foodwithboundary[boundary:-boundary, boundary:-boundary] = self.food
+        # we search just a circle within 'vision' tiles of 'pos' (these two commands build that search square)
+        searchsquare = foodwithboundary[int(pos[0] - vision):int(pos[0] + vision + 1),
+                       int(pos[1] - vision):int(pos[1] + vision + 1)]
+        searchsquare[(np.arange(-vision, vision + 1)[:, None] ** 2 + np.arange(-vision, vision + 1)[None,
+                                                                     :] ** 2) > vision ** 2] = -1
+        # this returns the location of that maximum food (with randomness added to equally weight same-food cells)
+        if np.all(searchsquare <= 0): return None  # no food found
+        return argmax_2darray(searchsquare + 0.01 * np.random.rand(vision * 2 + 1, vision * 2 + 1)) + position - vision
 
     def randomise_food_initially(self):
         """
@@ -203,13 +207,13 @@ class Environment:
         Returns whether the position is within the environment
         """
         position[:] = np.round(position)
-        if position[0]<0: return False
-        if position[1]<0: return False
-        if position[0]>self.shape[0]-1: return False
-        if position[1]>self.shape[1]-1: return False
-        
-        #this adds a 'wall' across the environment...
-        #if (position[1]>5) and (position[0]>self.shape[0]/2-3) and (position[0]<self.shape[0]/2+3): return False
+        if position[0] < 0: return False
+        if position[1] < 0: return False
+        if position[0] > self.shape[0] - 1: return False
+        if position[1] > self.shape[1] - 1: return False
+
+        # this adds a 'wall' across the environment...
+        # if (position[1]>5) and (position[0]>self.shape[0]/2-3) and (position[0]<self.shape[0]/2+3): return False
         return True
     
     def move_food(self, direction, unit):
@@ -226,14 +230,14 @@ class Environment:
         """
         Returns a random location in the environment.
         """
-        return np.random.randint([0,0],self.shape)
-        
-        #if we have a more complicated environment shape, use this instead to place new food in valid location...
-        #p = np.array([-10,-10])
-        #while not self.check_position(p):
+        return np.random.randint([0, 0], self.shape)
+
+        # if we have a more complicated environment shape, use this instead to place new food in valid location...
+        # p = np.array([-10,-10])
+        # while not self.check_position(p):
         #    p = np.random.randint([0,0],self.shape)
-        #return p
-    
+        # return p
+
     def grow(self):
         """
         Adds more food (random locations) 
@@ -241,5 +245,5 @@ class Environment:
         """
         for it in range(self.droprate):
             loc = self.get_random_location()
-            if self.food[loc[0],loc[1]]<self.maxfood:
-                self.food[loc[0],loc[1]]+=1
+            if self.food[loc[0], loc[1]] < self.maxfood:
+                self.food[loc[0], loc[1]] += 1

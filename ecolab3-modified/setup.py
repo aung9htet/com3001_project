@@ -10,6 +10,6 @@ setup(
   download_url = 'https://github.com/lionfish0/ecolab3.git',
   keywords = ['agent based model','teaching','rabbit','fox'],
   classifiers = [],
-  install_requires=['numpy'],
+  install_requires=['numpy','matplotlib'],
 )
 
