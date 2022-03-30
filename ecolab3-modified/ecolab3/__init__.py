@@ -24,7 +24,7 @@ def run_ecolab(env, agents, Niterations=1000, earlystop=True):
 
         # for each agent, apply rules (move, eat, breed)
         for agent in agents:
-            agent.move(env)
+            agent.move(env, agents)
             agent.eat(env, agents)
             a = agent.breed()
             if a is not None: agents.append(a)

@@ -13,17 +13,27 @@ def calcdist(v):
     return np.sqrt(np.sum(v ** 2))
 
 
+def getNest(agents):
+    """
+    Only works assuming there's one nest per simulation.
+    ----------- NEEDS TO BE CHANGED IF NOT -----------
+    """
+    return [agent for agent in agents if type(agent) == Nest][0]
+
+
 class Agent:
     """
     Base class for all types of agent
     """
 
     def __init__(self, position, age, food, speed, lastBreed, maxAge, starveThresh, inNest=True,
-                 breedFood=None, breedFreq=None):
+                 breedFood=None, breedFreq=None, isCarryingFood=False, returningToNest=False):
         """
         breedFood = quantity of food required to breed
         breedFreq = how many iterations between breed attempts
         maxAge = max age of agent
+        isCarryingFood = whether or not the agent is carrying food
+        returningToNest = if the agent is returning to the nest
         starveThresh = how low food levels have to be before trying to eat
         inNest = whether or not the agent is inside the nest
         age = age of agent in iterations
@@ -35,6 +45,8 @@ class Agent:
         self.breedFood = breedFood
         self.breedFreq = breedFreq
         self.maxAge = maxAge
+        self.isCarryingFood = isCarryingFood
+        self.returningToNest = returningToNest
         self.starveThresh = starveThresh
         self.inNest = inNest
         self.food = food
@@ -59,7 +71,7 @@ class Agent:
         self.lastBreed += 1
         return new_agent
 
-    def move(self, env):
+    def move(self, env, agents):
         pass  # to implement by child class
 
     def tryMove(self, newPosition, env):
@@ -79,71 +91,10 @@ class Agent:
     def eat(self, env, agents):
         pass  # to implement by child class
 
-    def die(self):
+    def workerEat(self, env, agents, pheromoneRange, vision):
         """
-        Returns true if it needs to expire, either due to:
-            - no food left
-            - old age
-        """
-        if self.food <= 0:
-            return True
-        if self.age > self.maxAge:
-            return True
-        return False
-
-    def summary_vector(self):
-        """
-        Returns a list of the location (x,y) and a 0=fox, 1=rabbit, e.g.
-        [3,4,1] means a rabbit at (3,4).
-        """
-        return [self.position[0], self.position[1], type(self) == Rabbit]
-
-    def getNestLocation(self, agents):
-        """
-        Only works assuming there's one nest per simulation.
-        ----------- NEEDS TO BE CHANGED IF NOT -----------
-        """
-        return [agent.position for agent in agents if type(agent) == Nest][0]
-
-
-class Nest(Agent):
-    """
-    Nest class, tbc
-    """
-
-
-class Worker(Agent):
-    vision = 3  # How many squares the agent can see
-    pheromoneRange = 10  # How many squares the agent can see specifically pheromones
-    isCarryingFood = False  # Whether or not the agent is carrying a unit of food
-    breedFreq = None
-    breedFood = None
-    maxAge = 20
-
-    def __init__(self, position, age=None, food=10, speed=1, lastBreed=0, starveThresh=3):
-        if age is None:
-            age = np.random.randint(self.maxAge)
-        super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh)
-        self.eaten = False
-
-    def move(self, env):
-        """
-        Worker Ant movement:
-        - If out of nest:
-        - If near pheromones,
-            - Follow trail to food
-        - If near food,
-            - Pick up food
-            - Return to nest
-        """
-        # If an ant in the nest is in a position to forage:
-        if (self.inNest and self.food > self.starveThresh * 3):
-            """
-            Check for nearest pheromones, and begin to follow trail. If not, do nothing.
-            """
-
-    def eat(self, env, agents):
-        """
+        Eat method for both scouts and workers. Placed in parent class to reduce code duplication. Cannot be the
+        default method due to the Queen's eat method being different.
         - Go to the closest source of food:
                 - Nest
                 - Food deposit
@@ -162,19 +113,20 @@ class Worker(Agent):
             Find the nearest source of food and eat(increase food level)
             """
             # Get nest position
-            nestPos = self.getNestLocation(agents)
+            nestPos = getNest(agents).getPos()
             nestDist = calcdistsqr(nestPos)
             # If can see nest:
-            if (nestDist < self.pheromoneRange ** 2):
+            if (nestDist < pheromoneRange ** 2):
                 self.attemptMoveToTarget(nestPos, env)
             # Can't sense nest, look for closest food deposit:
             else:
-                foodPos = env.get_loc_of_food(self.position, self.vision)
+                foodPos = env.get_loc_of_food(self.position, vision)
                 if foodPos is not None:
                     self.attemptMoveToTarget(foodPos, env)
             # Last resort - eat the food currently being carried:
             if self.isCarryingFood:
                 self.isCarryingFood = False
+                self.returningToNest = False
                 self.food += 2
         # Replenish food quickly if in nest:
         if self.inNest:
@@ -182,6 +134,138 @@ class Worker(Agent):
         # If not in the nest, reduce food:
         else:
             self.food -= 1
+
+    def die(self):
+        """
+        Returns true if it needs to expire, either due to:
+            - no food left
+            - old age
+        """
+        if self.food <= 0:
+            return True
+        if self.age > self.maxAge:
+            return True
+        return False
+
+    def getPos(self):
+        return self.position
+
+    def summary_vector(self):
+        """
+        Returns a list of the location (x,y) and a 0=fox, 1=rabbit, e.g.
+        [3,4,1] means a rabbit at (3,4).
+        """
+        return [self.position[0], self.position[1], type(self) == Rabbit]
+
+
+class Nest(Agent):
+    """
+    Nest class, tbc
+    """
+    def __init__(self, position, age=None, food=10, speed=1, lastBreed=0, starveThresh=3):
+        if age is None:
+            age = np.random.randint(self.maxAge)
+        super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh)
+        self.eaten = False
+
+
+class Worker(Agent):
+    vision = 3  # How many squares the agent can see
+    pheromoneRange = 10  # How many squares the agent can see specifically pheromones
+    isCarryingFood = False  # Whether or not the agent is carrying a unit of food
+    breedFreq = None
+    breedFood = None
+    maxAge = 20
+
+    def __init__(self, position, age=None, food=10, speed=1, lastBreed=0, starveThresh=3):
+        if age is None:
+            age = np.random.randint(self.maxAge)
+        super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh)
+        self.eaten = False
+
+    def move(self, env, agents):
+        """
+        Worker Ant movement:
+        - If out of nest:
+        - If near pheromones,
+            - Follow trail to food
+            - Buff up the trail while on it (unless no food is left)
+        - If near food,
+            - Pick up food
+            - Return to nest
+        """
+        # If an ant in the nest is in a state to forage:
+        if (self.inNest and self.food > self.starveThresh * 3):
+            """
+            Check for nearest pheromones, and begin to follow trail. If not, do nothing.
+            """
+
+    def eat(self, env, agents):
+        self.workerEat(env, agents, self.pheromoneRange, self.vision)
+
+
+class Scout(Agent):
+    vision = 10  # How many squares the agent can see
+    pheromoneRange = 6  # How many squares the agent can see specifically pheromones
+    isCarryingFood = False  # Whether or not the agent is carrying a unit of food
+    breedFreq = None
+    breedFood = None
+    maxAge = 20
+
+    def __init__(self, position, age=None, food=20, speed=3, lastBreed=0, starveThresh=2):
+        if age is None:
+            age = np.random.randint(self.maxAge)
+        super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh)
+        self.eaten = False
+
+    def move(self, env, agents):
+        """
+        Search for the closest food deposit:
+        - Move around somewhat randomly until getting in range of food
+        - When at food:
+            - Pick up some food
+            - Travel in a line back to the nest,
+            - Leave a pheromone trail along the way
+        """
+        # If returning to nest:
+        if self.returningToNest:
+            # Get nest pos:
+            nestPos = getNest(agents).getPos()
+            # Get direction of travel:
+            dy = float(nestPos[1]) - self.position[1]
+            dx = float(nestPos[0]) - self.position[0]
+            direction = np.tan(dy / dx)
+
+            # Move towards the nest:
+            delta = np.round(np.array([np.cos(direction), np.sin(direction)]) * self.speed)
+            self.tryMove(self.position + delta, env)
+
+            # Place pheromones over the path:
+            env.increase_pheromone(self.position, 0.3)
+            env.increase_pheromone(self.position + delta, 0.3)
+        else:
+            # If in nest & in a state to search for food:
+            if (self.inNest and self.food > self.starveThresh * 3):
+                foodPos = env.get_loc_of_food(self.position, self.vision)
+                if foodPos is not None:
+                    self.attemptMoveToTarget(foodPos, env)
+                else:
+                    # no food in range, pick a random direction...
+                    d = np.random.rand() * 2 * np.pi  # pick a random direction
+                    delta = np.round(np.array([np.cos(d), np.sin(d)]) * self.speed)
+
+                    self.tryMove(self.position + delta, env)
+            # If on top of food:
+            if (env.get_food(self.position) > 0):
+                # Pick up food:
+                self.isCarryingFood = True
+                env.reduce_food(self.position)
+                # Return to nest, leaving pheromones:
+                self.returningToNest = True
+
+
+    def eat(self, env, agents):
+        self.workerEat(env, agents, self.pheromoneRange, self.vision)
 
 
 class Rabbit(Agent):
