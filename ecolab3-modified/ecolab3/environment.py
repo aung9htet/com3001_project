@@ -218,7 +218,7 @@ class Environment:
     
     def move_food(self, direction, unit):
         """
-        Change the position of food
+        Change the position of food for all units
          - direction = the direction in which food will move
             - N = up
             - E = right
@@ -226,6 +226,46 @@ class Environment:
             - W = left
          - unit = the number of units in which the food will move to
         """
+        row = len(self.env_status)
+        column = len(self.env_status[0])
+        for y in range(row):
+            for x in range(column):
+                if (self.food[x,y] > 0):
+                    #Set direction then move the food towards the max possible unit
+                    match direction:
+                        case "N":
+                            #To go up so must go towards the start of the array
+                            new_y = y - unit
+                            if (new_y <= 0):
+                                new_y = 0
+                            self.food[x,y] = self.food[x,new_y]
+                            self.food[x,y] = 0
+                            exit()
+                        case "E":
+                            #To go right so must go towards the end of the array
+                            new_x = x + unit
+                            if (new_x >= column):
+                                new_y = column
+                            self.food[x,y] = self.food[new_x,y]
+                            self.food[x,y] = 0
+                            exit()
+                        case "S":
+                            #To go down so must go towards the end of the array
+                            new_y = y + unit
+                            if (new_y >= column):
+                                new_y = column
+                            self.food[x,y] = self.food[x,new_y]
+                            self.food[x,y] = 0
+                            exit()
+                        case "W":
+                            #To go left so must go towards the start of the array
+                            new_x = x - unit
+                            if (new_x <= 0):
+                                new_x = 0
+                            self.food[x,y] = self.food[new_x,y]
+                            self.food[x,y] = 0
+                            exit()
+
     def get_random_location(self):
         """
         Returns a random location in the environment.
@@ -241,9 +281,19 @@ class Environment:
     def grow(self):
         """
         Adds more food (random locations) 
-         - amount added controlled by self.growrate
+         - amount added controlled by self.droprate, self.maxfood and self.maxfoodperunit
         """
-        for it in range(self.droprate):
-            loc = self.get_random_location()
-            if self.food[loc[0], loc[1]] < self.maxfood:
-                self.food[loc[0], loc[1]] += 1
+        check_food = np.sum(self.food)
+        if (check_food < self.maxfood):
+            for it in range(round(self.droprate/10)*10):
+                loc = self.get_random_location()
+                food_amount = 10
+                #check for total amount of food possible
+                if ((self.maxfood - check_food) < 10):
+                    food_amount = check_food - self.maxfood
+                elif ((self.maxfood - check_food) < 0):
+                    food_amount = 0
+                #check for total amount of food possible per unit
+                if ((self.food[loc[0], loc[1]] + food_amount) - self.maxfoodperunit) < 0:
+                    food_amount = self.maxfoodperunit - self.food[loc[0], loc[1]]
+                self.food[loc[0], loc[1]] += food_amount
