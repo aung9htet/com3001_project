@@ -27,7 +27,8 @@ class Environment:
          - shape = shape of the environment
          - startfood = initial amount of food to be started on the map rounded to nearest 10
          - maxfood = maximum amount of food allowed in the whole map rounded to nearest 10
-         - droprate = number of tiles which get extra grass each iteration
+         - maxfoodperunit = maximum amount of food per unit allowed rounded to nearest 10
+         - droprate = number of tiles which get extra food each iteration(the droprate can only be lesser than the one decribed here)
          - max_percentage = percentage of wetlands to be able to exist at most
          - rain_intensity = intensity of rain which will also decide how much wetlands will be formed
          - percentage_dry = probability of wetlands turning to dry lands
@@ -283,17 +284,25 @@ class Environment:
         Adds more food (random locations) 
          - amount added controlled by self.droprate, self.maxfood and self.maxfoodperunit
         """
-        check_food = np.sum(self.food)
-        if (check_food < self.maxfood):
-            for it in range(round(self.droprate/10)*10):
-                loc = self.get_random_location()
-                food_amount = 10
-                #check for total amount of food possible
-                if ((self.maxfood - check_food) < 10):
-                    food_amount = check_food - self.maxfood
-                elif ((self.maxfood - check_food) < 0):
-                    food_amount = 0
-                #check for total amount of food possible per unit
-                if ((self.food[loc[0], loc[1]] + food_amount) - self.maxfoodperunit) < 0:
-                    food_amount = self.maxfoodperunit - self.food[loc[0], loc[1]]
-                self.food[loc[0], loc[1]] += food_amount
+        stop_drop = False #if droprate reached or max_food reached, will stop drop
+        dropped_amount = 0
+        while (stop_drop == False):
+            check_food = np.sum(self.food)
+            loc = self.get_random_location()
+            food_amount = 10
+            #check for total amount of food possible
+            if ((self.maxfood - check_food) < 10):
+                food_amount = check_food - self.maxfood
+            elif ((self.maxfood - check_food) < 0):
+                food_amount = 0
+            #check for total amount of food possible per unit
+            if ((self.food[loc[0], loc[1]] + food_amount) - self.maxfoodperunit) < 0:
+                food_amount = self.maxfoodperunit - self.food[loc[0], loc[1]]
+            self.food[loc[0], loc[1]] += food_amount
+            dropped_amount += food_amount
+            #check whether to stop dropping
+            if (check_food < self.maxfood):
+                stop_drop = True
+            elif (dropped_amount >= self.droprate):
+                stop_drop = True
+
