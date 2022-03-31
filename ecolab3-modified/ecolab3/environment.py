@@ -61,7 +61,7 @@ class Environment:
         """
         Change the wet lands randomly depending on the intensity of the rain
         """
-        intensity = self.get_rain_intensity
+        intensity = self.get_rain_intensity()
         row = len(self.env_status)
         column = len(self.env_status[0])  # column is going to be same for every row
         number_of_blocks = row * column
@@ -76,12 +76,13 @@ class Environment:
             n_generate_wet = np.random.randint(max_n_wet - counter)
             for i in range(n_generate_wet):
                 valid_change = False
+                n_row, n_column = 0, 0
                 while (valid_change == False):
                     n_row = np.random.randint(row)
                     n_column = np.random.randint(column)
                     if self.env_status[n_row, n_column] == 0:
                         valid_change = True
-                self.set_env_rain[n_row, n_column]
+                self.set_env_rain([n_row, n_column])
 
     def change_env_dry(self):
         """
@@ -92,7 +93,7 @@ class Environment:
                 if current_unit == 1:
                     change_dry = np.random.rand()
                     if change_dry <= self.percentage_dry:
-                        current_unit = 0  # changed to dry
+                        row[row.index(current_unit)] = 0  # changed to dry
 
     def get_env_status(self, position):
         """
@@ -163,7 +164,13 @@ class Environment:
         if self.get_food(position) > 0:
             self.food[int(position[0]), int(position[1])] -= amount
 
-    def get_loc_of_food(self, position, vision):
+    def get_loc_of_food(self, pos, sense):
+        return self.get_loc_of_target(pos, sense, True)
+
+    def get_loc_of_pheromone(self, pos, sense):
+        return self.get_loc_of_target(pos, sense, False)
+
+    def get_loc_of_target(self, position, vision, isFood=True):
         """
         This finds the location of the cell with the maximum amount of food near 'pos',
         within a circle of 'vision' size.
@@ -174,31 +181,35 @@ class Environment:
         # we temporarily build a new datastructure to look for the largest food in with a
         # strip/boundary around the edge of zero food. This feels like the simplest code
         # to solve the edge case problem, but is quite a slow solution.
+        if isFood:
+            target = self.food
+        else:
+            target = self.pheromone
         boundary = 10
         pos = position + boundary
-        foodwithboundary = np.zeros(np.array(self.food.shape) + boundary * 2)
-        foodwithboundary[boundary:-boundary, boundary:-boundary] = self.food
+        targetWithBoundary = np.zeros(np.array(target.shape) + boundary * 2)
+        targetWithBoundary[boundary:-boundary, boundary:-boundary] = target
         # we search just a circle within 'vision' tiles of 'pos' (these two commands build that search square)
-        searchsquare = foodwithboundary[int(pos[0] - vision):int(pos[0] + vision + 1),
+        searchSquare = targetWithBoundary[int(pos[0] - vision):int(pos[0] + vision + 1),
                        int(pos[1] - vision):int(pos[1] + vision + 1)]
-        searchsquare[(np.arange(-vision, vision + 1)[:, None] ** 2 + np.arange(-vision, vision + 1)[None,
+        searchSquare[(np.arange(-vision, vision + 1)[:, None] ** 2 + np.arange(-vision, vision + 1)[None,
                                                                      :] ** 2) > vision ** 2] = -1
         # this returns the location of that maximum food (with randomness added to equally weight same-food cells)
-        if np.all(searchsquare <= 0): return None  # no food found
-        return argmax_2darray(searchsquare + 0.01 * np.random.rand(vision * 2 + 1, vision * 2 + 1)) + position - vision
+        if np.all(searchSquare <= 0): return None  # no food found
+        return argmax_2darray(searchSquare + 0.01 * np.random.rand(vision * 2 + 1, vision * 2 + 1)) + position - vision
 
     def randomise_food_initially(self):
         """
         Puts food randomly on the map with size that is random
         """
         row = len(self.env_status)
-        column = len(self.env_status[0]) #column is going to be same for every row
-        for i in range(self.startfood/10):
+        column = len(self.env_status[0])  # column is going to be same for every row
+        for i in range(round(self.startfood/10)):
             dropped_successfully = False
             while (dropped_successfully == False):
                 n_row = np.random.randint(row)
                 n_column = np.random.randint(column)
-                #add food to unit if the added size will be less than the maximum allowed food to each unit area
+                # add food to unit if the added size will be less than the maximum allowed food to each unit area
                 if ((self.food[n_row, n_column] - self.maxfoodperunit) >= 10):
                     self.food[n_row, n_column] += self.droprate
                     dropped_successfully = True
