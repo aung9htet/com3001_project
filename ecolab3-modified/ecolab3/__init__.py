@@ -1,5 +1,5 @@
 import numpy as np
-from ecolab3.agents import Rabbit, Fox
+from ecolab3.agents import Rabbit, Fox, Worker, Scout, Nest
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -31,6 +31,8 @@ def run_ecolab(env, agents, Niterations=1000, earlystop=True):
 
         # removed dead agents
         agents = [a for a in agents if not a.die()]
+        # Update population:
+        Nest([agent for agent in agents if type(agent) == Nest][0]).updatePopulation(agents)
 
         # grow more grass
         env.grow()

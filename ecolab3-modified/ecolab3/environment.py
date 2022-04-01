@@ -20,7 +20,8 @@ def argmax_2darray(a):
 
 
 class Environment:
-    def __init__(self,shape=[40,40],startfood=30,maxfood=40,maxfoodperunit = 10,droprate=10, max_percentage = 0, rain_intensity = 0, percentage_dry = 0):
+    def __init__(self, shape=[40, 40], startfood=30, maxfood=40, maxfoodperunit=10, droprate=10, max_percentage=0,
+                 rain_intensity=0, percentage_dry=0):
         """
         Create the environment
         Parameters:
@@ -33,17 +34,17 @@ class Environment:
          - rain_intensity = intensity of rain which will also decide how much wetlands will be formed
          - percentage_dry = probability of wetlands turning to dry lands
         """
-        self.rain_intensity = rain_intensity # set rain intensity to randomized the wet land formed and pheromone to reduce depending on the rain intensity
-        self.maxfood = round(maxfood/10)*10 #maximum it can grow to, should be in increments of 10
-        self.droprate = droprate #how many new items of food added per step
-        self.shape = shape #shape of the environment
-        self.maxfoodperunit = round(maxfoodperunit/10)*10 #decide the max food size per unit
-        self.startfood = round(startfood/10)*10 #starting point of food, should be in increments of 10
-        self.food = np.zeros(self.shape) #will be randomised later on map
-        self.pheromone = np.zeros(self.shape) #set all pheromone trail as zero initially
-        self.env_status = np.zeros(self.shape) #0 being dry land and 1 being wet land, Initialised all as wet land
-        self.max_percentage = max_percentage #decide the max number of wet lands to be produced
-        self.percentage_dry = percentage_dry #decide to change wet land to dry
+        self.rain_intensity = rain_intensity  # set rain intensity to randomized the wet land formed and pheromone to reduce depending on the rain intensity
+        self.maxfood = round(maxfood / 10) * 10  # maximum it can grow to, should be in increments of 10
+        self.droprate = droprate  # how many new items of food added per step
+        self.shape = shape  # shape of the environment
+        self.maxfoodperunit = round(maxfoodperunit / 10) * 10  # decide the max food size per unit
+        self.startfood = round(startfood / 10) * 10  # starting point of food, should be in increments of 10
+        self.food = np.zeros(self.shape)  # will be randomised later on map
+        self.pheromone = np.zeros(self.shape)  # set all pheromone trail as zero initially
+        self.env_status = np.zeros(self.shape)  # 0 being dry land and 1 being wet land, Initialised all as wet land
+        self.max_percentage = max_percentage  # decide the max number of wet lands to be produced
+        self.percentage_dry = percentage_dry  # decide to change wet land to dry
 
     def get_rain_intensity(self):
         """
@@ -195,8 +196,12 @@ class Environment:
         searchSquare[(np.arange(-vision, vision + 1)[:, None] ** 2 + np.arange(-vision, vision + 1)[None,
                                                                      :] ** 2) > vision ** 2] = -1
         # this returns the location of that maximum food (with randomness added to equally weight same-food cells)
-        if np.all(searchSquare <= 0): return None  # no food found
+        if np.all(searchSquare <= 0):
+            return None  # no food found
         return argmax_2darray(searchSquare + 0.01 * np.random.rand(vision * 2 + 1, vision * 2 + 1)) + position - vision
+
+    def followTrail(self, sense, position, nestPos):
+        pass
 
     def randomise_food_initially(self):
         """
@@ -204,7 +209,7 @@ class Environment:
         """
         row = len(self.env_status)
         column = len(self.env_status[0])  # column is going to be same for every row
-        for i in range(round(self.startfood/10)):
+        for i in range(round(self.startfood / 10)):
             dropped_successfully = False
             while (dropped_successfully == False):
                 n_row = np.random.randint(row)
@@ -213,8 +218,8 @@ class Environment:
                 if ((self.food[n_row, n_column] - self.maxfoodperunit) >= 10):
                     self.food[n_row, n_column] += self.droprate
                     dropped_successfully = True
-        
-    def check_position(self,position):
+
+    def check_position(self, position):
         """
         Returns whether the position is within the environment
         """
@@ -236,7 +241,7 @@ class Environment:
         column = len(self.env_status[0])
         position = [np.floor(column/2), np.floor(row/2)]
         return position
-        
+
     def move_food(self, direction, unit):
         """
         Change the position of food for all units
@@ -251,40 +256,40 @@ class Environment:
         column = len(self.env_status[0])
         for y in range(row):
             for x in range(column):
-                if (self.food[x,y] > 0):
-                    #Set direction then move the food towards the max possible unit
+                if (self.food[x, y] > 0):
+                    # Set direction then move the food towards the max possible unit
                     match direction:
                         case "N":
-                            #To go up so must go towards the start of the array
+                            # To go up so must go towards the start of the array
                             new_y = y - unit
                             if (new_y <= 0):
                                 new_y = 0
-                            self.food[x,y] = self.food[x,new_y]
-                            self.food[x,y] = 0
+                            self.food[x, y] = self.food[x, new_y]
+                            self.food[x, y] = 0
                             exit()
                         case "E":
-                            #To go right so must go towards the end of the array
+                            # To go right so must go towards the end of the array
                             new_x = x + unit
                             if (new_x >= column):
                                 new_y = column
-                            self.food[x,y] = self.food[new_x,y]
-                            self.food[x,y] = 0
+                            self.food[x, y] = self.food[new_x, y]
+                            self.food[x, y] = 0
                             exit()
                         case "S":
-                            #To go down so must go towards the end of the array
+                            # To go down so must go towards the end of the array
                             new_y = y + unit
                             if (new_y >= column):
                                 new_y = column
-                            self.food[x,y] = self.food[x,new_y]
-                            self.food[x,y] = 0
+                            self.food[x, y] = self.food[x, new_y]
+                            self.food[x, y] = 0
                             exit()
                         case "W":
-                            #To go left so must go towards the start of the array
+                            # To go left so must go towards the start of the array
                             new_x = x - unit
                             if (new_x <= 0):
                                 new_x = 0
-                            self.food[x,y] = self.food[new_x,y]
-                            self.food[x,y] = 0
+                            self.food[x, y] = self.food[new_x, y]
+                            self.food[x, y] = 0
                             exit()
 
     def get_random_location(self):
@@ -304,25 +309,24 @@ class Environment:
         Adds more food (random locations) 
          - amount added controlled by self.droprate, self.maxfood and self.maxfoodperunit
         """
-        stop_drop = False #if droprate reached or max_food reached, will stop drop
+        stop_drop = False  # if droprate reached or max_food reached, will stop drop
         dropped_amount = 0
         while (stop_drop == False):
             check_food = np.sum(self.food)
             loc = self.get_random_location()
             food_amount = 10
-            #check for total amount of food possible
+            # check for total amount of food possible
             if ((self.maxfood - check_food) < 10):
                 food_amount = check_food - self.maxfood
             elif ((self.maxfood - check_food) < 0):
                 food_amount = 0
-            #check for total amount of food possible per unit
+            # check for total amount of food possible per unit
             if ((self.food[loc[0], loc[1]] + food_amount) - self.maxfoodperunit) < 0:
                 food_amount = self.maxfoodperunit - self.food[loc[0], loc[1]]
             self.food[loc[0], loc[1]] += food_amount
             dropped_amount += food_amount
-            #check whether to stop dropping
+            # check whether to stop dropping
             if (check_food < self.maxfood):
                 stop_drop = True
             elif (dropped_amount >= self.droprate):
                 stop_drop = True
-
