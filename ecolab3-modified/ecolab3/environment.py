@@ -217,6 +217,15 @@ class Environment:
         # if (position[1]>5) and (position[0]>self.shape[0]/2-3) and (position[0]<self.shape[0]/2+3): return False
         return True
     
+    def get_center(self):
+        """
+        Returns the middle position of the environment
+        """
+        row = len(self.env_status)
+        column = len(self.env_status[0])
+        position = [np.floor(column/2), np.floor(row/2)]
+        return position
+        
     def move_food(self, direction, unit):
         """
         Change the position of food for all units

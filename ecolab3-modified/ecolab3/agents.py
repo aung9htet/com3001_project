@@ -1,3 +1,4 @@
+from this import d
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -54,8 +55,9 @@ class Agent:
         self.position = position
         self.speed = speed
         self.lastBreed = lastBreed
+        self.agent_count = 0
 
-    def breed(self):
+    def breed(self, check_conflict = False, breedType = None, p_die = 0.5):
         """
         This will either return None, or a new agent object
         Having breed freq/food be none means never breed
@@ -65,11 +67,25 @@ class Agent:
         new_agent = None
         if (self.lastBreed > self.breedFreq) and (self.food > self.breedFood):
             self.lastBreed = -1
-            new_agent = type(self)(self.position, 0, self.food / 2, self.speed, 10)
+            #check what to produce
+            if (isinstance(breedType, type(None)) == True):
+                new_agent = type(self)(self.position, 0, self.food / 2, self.speed, 10)
+            else:
+                new_agent = type(breedType)(self.position, 0, self.food / 2, self.speed, 10)
             self.food = self.food / 2
         self.age += 1
         self.lastBreed += 1
-        return new_agent
+        #check conflict for queen
+        if (check_conflict == True):
+            curr_p = np.random.rand()
+            if (curr_p > p_die):
+                self.agent_count += 1
+                return new_agent
+            else:
+                return None
+        else:
+            self.agent_count += 1
+            return new_agent
 
     def move(self, env, agents):
         pass  # to implement by child class
@@ -160,14 +176,88 @@ class Agent:
 
 class Nest(Agent):
     """
-    Nest class, tbc
+    Nest class
+    The class is the one and only and will manage the population of queens, worker ants and scout ants as such
     """
-    def __init__(self, position, age=None, food=10, speed=1, lastBreed=0, starveThresh=3):
+    def __init__(self, env, food=10, speed=0, lastBreed=0, starveThresh=3):
+        age = 0
+        position = env.get_center() #set in the middle of the env
+        super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh)
+        self.totalpopulation = 0 #count on the total population that has been bred in the nest
+
+    def getFood(self):
+        """
+        Returns the amount of food the nest will have inside
+        """
+        return self.food
+     
+    def addFood(self, amount):
+        """
+        Add food to the agent
+        """
+        self.food += amount
+    
+    def removeFood(self, amount):
+        """
+        Reduce the food from the agent
+        """
+        self.food -= amount
+
+    def getPopulation(self):
+        """
+        Returns the population of the nest
+        """
+        return self.population
+
+    def addPopulation(self, amount):
+        """
+        Add ants to the nest 
+        """
+        self.population += amount
+
+    def decideNQueen(self, queen, set_food, set_population):
+        """
+        Decide on whether to add queen or not
+        """
+        if ((self.food > set_food) and (self.population >= set_population * self.agent_count)):
+            queen.breed(check_conflict = True)
+            self.addPopulation += 1
+    
+    def decideBreed(self, queen, worker, scout):
+        """
+        Decide on the breed to be made
+        """
+        # 3/4 of the population is female workers and scouts
+        if ((self.population % 4) == 0):
+            self.addPopulation(1)
+        else:
+            #scout when food threshold is low
+            if (self.food <= self.starveThresh):
+                queen.breed(breedType = Scout)
+            else:
+                queen.breed(breedType = Worker)
+            self.addPopulation(1)
+
+class Queen(Agent):
+    """
+    Required for calculating the population of the nest
+    """
+    def __init__(self, position, age=None, food=2, maxfood = 2, speed=1, lastBreed=0, starveThresh=3):
         if age is None:
             age = np.random.randint(self.maxAge)
         super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh)
-        self.eaten = False
-
+        self.maxfood = maxfood
+    
+    def replenish(self, nest):
+        """
+        To make the queen full again for breeding
+        """
+        if (self.food < self.maxfood):
+            addAmount = self.maxfood - self.food
+            #get food from nest
+            nest.removeFood(addAmount)
+            #the queen eats
+            self.food += addAmount          
 
 class Worker(Agent):
     vision = 3  # How many squares the agent can see
@@ -266,7 +356,6 @@ class Scout(Agent):
 
     def eat(self, env, agents):
         self.workerEat(env, agents, self.pheromoneRange, self.vision)
-
 
 class Rabbit(Agent):
     # These are the same for all rabbits.
