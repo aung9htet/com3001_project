@@ -18,8 +18,9 @@ def argmax_2darray(a):
     """
     return np.unravel_index(a.argmax(), a.shape)
 
+
 class Environment:
-    def __init__(self, shape=[40, 40], startfood=30, maxfood=40, maxfoodperunit=10, droprate=10, max_percentage=0,
+    def __init__(self, shape=None, startfood=30, maxfood=40, maxfoodperunit=10, droprate=10, max_percentage=0,
                  rain_intensity=0, percentage_dry=0):
         """
         Create the environment
@@ -33,6 +34,8 @@ class Environment:
          - rain_intensity = intensity of rain which will also decide how much wetlands will be formed
          - percentage_dry = probability of wetlands turning to dry lands
         """
+        if shape is None:
+            shape = [80, 80]
         self.rain_intensity = rain_intensity  # set rain intensity to randomized the wet land formed and pheromone to reduce depending on the rain intensity
         self.maxfood = round(maxfood / 10) * 10  # maximum it can grow to, should be in increments of 10
         self.droprate = droprate  # how many new items of food added per step
@@ -235,14 +238,14 @@ class Environment:
         # this adds a 'wall' across the environment...
         # if (position[1]>5) and (position[0]>self.shape[0]/2-3) and (position[0]<self.shape[0]/2+3): return False
         return True
-    
+
     def get_center(self):
         """
         Returns the middle position of the environment
         """
         row = len(self.env_status)
         column = len(self.env_status[0])
-        position = [np.floor(column/2), np.floor(row/2)]
+        position = [np.floor(column / 2), np.floor(row / 2)]
         return position
 
     def move_food(self, direction, unit):

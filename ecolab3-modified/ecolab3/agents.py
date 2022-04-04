@@ -331,7 +331,7 @@ class Queen(Agent):
 
 
 class Worker(Agent):
-    vision = 3  # How many squares the agent can see
+    vision = 4  # How many squares the agent can see
     pheromoneRange = 10  # How many squares the agent can see specifically pheromones
     isCarryingFood = False  # Whether or not the agent is carrying a unit of food
     breedFreq = None
@@ -374,7 +374,7 @@ class Worker(Agent):
 
 class Scout(Agent):
     vision = 10  # How many squares the agent can see
-    pheromoneRange = 6  # How many squares the agent can see specifically pheromones
+    pheromoneRange = 5  # How many squares the agent can see specifically pheromones
     isCarryingFood = False  # Whether or not the agent is carrying a unit of food
     breedFreq = None
     breedFood = None
