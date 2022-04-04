@@ -18,7 +18,6 @@ def argmax_2darray(a):
     """
     return np.unravel_index(a.argmax(), a.shape)
 
-
 class Environment:
     def __init__(self, shape=[40, 40], startfood=30, maxfood=40, maxfoodperunit=10, droprate=10, max_percentage=0,
                  rain_intensity=0, percentage_dry=0):
@@ -171,14 +170,10 @@ class Environment:
     def get_loc_of_pheromone(self, pos, sense):
         return self.get_loc_of_target(pos, sense, False)
 
-    def get_loc_of_target(self, position, vision, isFood=True):
+    def generateSearchSquare(self, position, vision, isFood=True):
         """
-        This finds the location of the cell with the maximum amount of food near 'pos',
-        within a circle of 'vision' size.
-        For example env.get_dir_of_food(np.array([3,3]),2)
-        if two or more cells have the same food then it will select between them randomly.
+        Get the search square around the position of the agent and return it.
         """
-
         # we temporarily build a new datastructure to look for the largest food in with a
         # strip/boundary around the edge of zero food. This feels like the simplest code
         # to solve the edge case problem, but is quite a slow solution.
@@ -195,13 +190,21 @@ class Environment:
                        int(pos[1] - vision):int(pos[1] + vision + 1)]
         searchSquare[(np.arange(-vision, vision + 1)[:, None] ** 2 + np.arange(-vision, vision + 1)[None,
                                                                      :] ** 2) > vision ** 2] = -1
-        # this returns the location of that maximum food (with randomness added to equally weight same-food cells)
-        if np.all(searchSquare <= 0):
-            return None  # no food found
-        return argmax_2darray(searchSquare + 0.01 * np.random.rand(vision * 2 + 1, vision * 2 + 1)) + position - vision
+        return searchSquare
 
-    def followTrail(self, sense, position, nestPos):
-        pass
+    def get_loc_of_target(self, position, vision, isFood=True):
+        """
+        This finds the location of the cell with the maximum amount of food near 'pos',
+        within a circle of 'vision' size.
+        For example env.get_dir_of_food(np.array([3,3]),2)
+        if two or more cells have the same food then it will select between them randomly.
+        """
+
+        searchSquare = self.generateSearchSquare(position, vision, isFood)
+
+        if np.all(searchSquare <= 0):
+            return None  # no target instances found
+        return argmax_2darray(searchSquare + 0.01 * np.random.rand(vision * 2 + 1, vision * 2 + 1)) + position - vision
 
     def randomise_food_initially(self):
         """

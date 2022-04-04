@@ -1,4 +1,3 @@
-from this import d
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -57,38 +56,52 @@ class Agent:
         self.lastBreed = lastBreed
         self.agent_count = 0
 
-    def breed(self, check_conflict=False, breedType=None, p_die=0.5):
-        """
-        This will either return None, or a new agent object
-        Having breed freq/food be none means never breed
-        """
-        if self.breedFreq is None or self.breedFood is None:
-            return None
-        new_agent = None
-        if (self.lastBreed > self.breedFreq) and (self.food > self.breedFood):
-            self.lastBreed = -1
-            # check what to produce
-            if (isinstance(breedType, type(None)) == True):
-                new_agent = type(self)(self.position, 0, self.food / 2, self.speed, 10)
-            else:
-                new_agent = type(breedType)(self.position, 0, self.food / 2, self.speed, 10)
-            self.food = self.food / 2
-        self.age += 1
-        self.lastBreed += 1
-        # check conflict for queen
-        if (check_conflict == True):
-            curr_p = np.random.rand()
-            if (curr_p > p_die):
-                self.agent_count += 1
-                return new_agent
-            else:
-                return None
-        else:
-            self.agent_count += 1
-            return new_agent
+    def breed(self):
+        pass
 
     def move(self, env, agents):
         pass  # to implement by child class
+
+    def followTrail(self, env, sense, agents):
+        """
+        Get the location of the pheromones that are either as far from the nest or as close
+        to the nest as possible.
+        """
+        searchSquare = env.generateSearchSquare(self.position, sense, False)
+
+        if np.all(searchSquare <= 0):
+            return None  # no target instances found
+
+        positions = np.array([np.zeros(len(searchSquare)) for _ in range(len(searchSquare))])
+        # Get the center index of the searchSquare (ie the agent's position):
+        center = (len(searchSquare) + 1) / 2
+
+        # Each position is translated from local to global coords - relative to the agent's position:
+        # Positions are only calculated for squares that have >0 pheromones,
+        # as otherwise there's no point in checking them.
+        for i in range(len(searchSquare)):
+            for j in range(len(searchSquare[i])):
+                if searchSquare[i][j] > 0:
+                    diff = np.array((center - j) * (-1), center - i)
+                    positions[i][j] = np.array(self.position[0] + diff[0], self.position[1] + diff[1])
+                else:
+                    positions[i][j] = np.nan
+
+        # Get distance for each position:
+        distances = np.array([[calcdistsqr(pos - getNest(agents).position)
+                               for pos in row if pos != np.nan] for row in positions])
+
+        # If the agent is returning to the nest, get the pheromone closest to the nest.
+        # Otherwise, get the pheromones furthest from the nest
+        if self.isReturningToNest:
+            # Get the minimum distance:
+            targetDistance = np.nanargmin(distances)
+        else:
+            # Get the maximum distance:
+            targetDistance = np.nanargmax(distances)
+
+        # Return the position([x,y]) of the pheromones closest/furthest from the nest:
+        return positions.flatten()[targetDistance]
 
     def returnToNest(self, env, agents):
         """
@@ -248,11 +261,11 @@ class Nest(Agent):
                 queen.breed(breedType=Worker)
             self.addPopulation(1)
 
-    def depositFood(self):
-        self.food += 2
+    def depositFood(self, amount=2):
+        self.food += amount
 
-    def reduceFood(self):
-        self.food -= 1
+    def reduceFood(self, amount=1):
+        self.food -= amount
 
     def updatePopulation(self, agents):
         for agent in agents:
@@ -275,16 +288,46 @@ class Queen(Agent):
         super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh)
         self.maxfood = maxfood
 
-    def replenish(self, nest):
+    def eat(self, env, agents):
         """
         To make the queen full again for breeding
         """
         if (self.food < self.maxfood):
             addAmount = self.maxfood - self.food
             # get food from nest
-            nest.removeFood(addAmount)
+            getNest(agents).reduceFood()
             # the queen eats
             self.food += addAmount
+
+    def breed(self, check_conflict=False, breedType=None, p_die=0.5):
+        """
+            This will either return None, or a new agent object
+            Having breed freq/food be none means never breed
+        """
+        if self.breedFreq is None or self.breedFood is None:
+            return None
+        new_agent = None
+        if (self.lastBreed > self.breedFreq) and (self.food > self.breedFood):
+            self.lastBreed = -1
+            # check what to produce
+            if (isinstance(breedType, type(None)) == True):
+                new_agent = type(self)(self.position, 0, self.food / 2, self.speed, 10)
+            else:
+                new_agent = type(breedType)(self.position, 0, self.food / 2, self.speed, 10)
+            self.food = self.food / 2
+        self.age += 1
+        self.lastBreed += 1
+        # check conflict for queen
+        if (check_conflict == True):
+            curr_p = np.random.rand()
+            if (curr_p > p_die):
+                self.agent_count += 1
+                return new_agent
+            else:
+                return None
+        else:
+            self.agent_count += 1
+            return new_agent
 
 
 class Worker(Agent):
