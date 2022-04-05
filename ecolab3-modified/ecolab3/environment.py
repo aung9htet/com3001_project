@@ -18,7 +18,6 @@ def argmax_2darray(a):
     """
     return np.unravel_index(a.argmax(), a.shape)
 
-
 class Environment:
     def __init__(self, shape=None, startfood=30, maxfood=40, maxfoodperunit=10, droprate=10, max_percentage=0,
                  rain_intensity=0, percentage_dry=0):
@@ -36,7 +35,8 @@ class Environment:
         """
         if shape is None:
             shape = [80, 80]
-        self.rain_intensity = rain_intensity  # set rain intensity to randomized the wet land formed and pheromone to reduce depending on the rain intensity
+        self.rain_intensity = rain_intensity  # set rain intensity to randomized the wet land formed and pheromone to
+        # reduce depending on the rain intensity
         self.maxfood = round(maxfood / 10) * 10  # maximum it can grow to, should be in increments of 10
         self.droprate = droprate  # how many new items of food added per step
         self.shape = shape  # shape of the environment
@@ -44,53 +44,94 @@ class Environment:
         self.startfood = round(startfood / 10) * 10  # starting point of food, should be in increments of 10
         self.food = np.zeros(self.shape)  # will be randomised later on map
         self.pheromone = np.zeros(self.shape)  # set all pheromone trail as zero initially
-        self.env_status = np.zeros(self.shape)  # 0 being dry land and 1 being wet land, Initialised all as wet land
+        self.waterLevels = np.zeros(self.shape)  # 0 being completely dry, 1 being completely waterlogged
+        self.rainFall = 0  # Intensity of rainfall, 0 being none, 1 being heavy
         self.max_percentage = max_percentage  # decide the max number of wet lands to be produced
         self.percentage_dry = percentage_dry  # decide to change wet land to dry
 
+    def generateRainIntensity(self, val=None):
+        """
+        Generate value for rain intensity.
+        """
+        if val is None:
+            # Generate new intensity:
+            newIntensity = np.random.randint(0, 100) / 100
+        else:
+            newIntensity = val
+
+        self.rainFall = newIntensity
+
+    def getRainIntensity(self):
+        """
+        Return value for rainfall intensity.
+        """
+        return self.rainFall
+
+    def getLevelIncrease(self, currentLevel):
+        """
+        Using the value of rainfall (+/- 10%), calculate the increase in water level it would cause.
+        -- At rain intensity 'x', the increase would be 'x / 5'.
+        """
+        percentChange = np.random.randint(-10, +10) / 100
+        increase = (self.rainFall + (self.rainFall * percentChange)) / 5
+
+        newLevel = increase + currentLevel
+
+        if newLevel > 1:
+            return 1
+        else:
+            return newLevel
+
+    def calculateWaterLevels(self):
+        """
+        Using the current rainfall & water levels, calculate the water levels of each position after
+        an iteration of rain.
+        """
+        # TODO: need to figure out a decay for water levels when it's dry!! (For now it's -0.2 per iteration)
+        decayValue = 0.2
+
+        if self.rainFall is not 0:
+            # If it is raining:
+            self.waterLevels = [[self.getLevelIncrease(lvl) for lvl in row] for row in self.waterLevels]
+        else:
+            # If it isn't raining:
+            self.waterLevels = [[lvl - decayValue if lvl > decayValue else 0 for lvl in row] for row in self.waterLevels]
+
+    """
     def get_rain_intensity(self):
-        """
-        Returns rain intensity
-        """
+        #Returns rain intensity
         return self.rain_intensity
 
     def set_rain_intensity(self, intensity):
-        """
-        Set rain intensity
-        """
+        #Set rain intensity
         self.rain_intensity = intensity
 
     def change_env_rain(self):
-        """
-        Change the wet lands randomly depending on the intensity of the rain
-        """
+        #Change the wet lands randomly depending on the intensity of the rain
         intensity = self.get_rain_intensity()
-        row = len(self.env_status)
-        column = len(self.env_status[0])  # column is going to be same for every row
-        number_of_blocks = row * column
+        rowLen = self.env_status.shape[0]
+        colLen = self.env_status.shape[1]
+        number_of_blocks = len(self.env_status.flatten())
         max_n_wet = intensity * self.max_percentage * number_of_blocks  # decide max number of wet land blocks
         # count number of wet blocks currently
         counter = 0
         for x in self.env_status:
             counter += x.count(1)
-        # generate wet lands if it is not at max limit
-        n_generate_wet = 0
-        if (counter < max_n_wet):
-            n_generate_wet = np.random.randint(max_n_wet - counter)
-            for i in range(n_generate_wet):
-                valid_change = False
-                n_row, n_column = 0, 0
-                while (valid_change == False):
-                    n_row = np.random.randint(row)
-                    n_column = np.random.randint(column)
-                    if self.env_status[n_row, n_column] == 0:
-                        valid_change = True
-                self.set_env_rain([n_row, n_column])
+            if (counter < max_n_wet):
+                # generate wet lands if it is not at max limit
+                n_generate_wet = np.random.randint(max_n_wet - counter)
+                for i in range(n_generate_wet):
+                    valid_change = False
+                    n_row, n_column = 0, 0
+                    while valid_change is False:
+                        n_row = np.random.randint(rowLen)
+                        n_column = np.random.randint(colLen)
+                        if self.env_status[n_row, n_column] == 0:
+                            valid_change = True
+                    self.set_env_rain([n_row, n_column])
 
     def change_env_dry(self):
-        """
-        Change wet lands to dry lands with a default percentage
-        """
+        #Change wet lands to dry lands with a default percentage
         for row in self.env_status:
             for current_unit in row:
                 if current_unit == 1:
@@ -99,31 +140,18 @@ class Environment:
                         row[row.index(current_unit)] = 0  # changed to dry
 
     def get_env_status(self, position):
-        """
-        Returns the environment status
-        """
+        #Returns the environment status
         return self.env_status[int(position[0]), int(position[1])]
 
-    def change_env_status(self, position):
-        """
-        Change the status of land
-        """
-        if (self.env_status[int(position[0]), int(position[1])] == 1):
-            self.env_status[int(position[0]), int(position[1])] = 0
-        else:
-            self.env_status[int(position[0]), int(position[1])] = 1
-
     def set_env_rain(self, position):
-        """
-        Set status of land to rain
-        """
+        #Set status of land to rain
         self.env_status[int(position[0]), int(position[1])] = 1
 
     def set_env_dry(self, position):
-        """
-        Set status of land to dry
-        """
+        #Set status of land to dry
         self.env_status[int(position[0]), int(position[1])] = 0
+        
+    """
 
     def get_pheromone(self, position):
         """
@@ -213,8 +241,8 @@ class Environment:
         """
         Puts food randomly on the map with size that is random
         """
-        row = len(self.env_status)
-        column = len(self.env_status[0])  # column is going to be same for every row
+        row = self.shape[0]
+        column = self.shape[1]  # column is going to be same for every row
         for i in range(round(self.startfood / 10)):
             dropped_successfully = False
             while (dropped_successfully == False):
@@ -243,9 +271,7 @@ class Environment:
         """
         Returns the middle position of the environment
         """
-        row = len(self.env_status)
-        column = len(self.env_status[0])
-        position = [np.floor(column / 2), np.floor(row / 2)]
+        position = [np.floor(self.shape[1] / 2), np.floor(self.shape[0] / 2)]
         return position
 
     def move_food(self, direction, unit):
@@ -258,8 +284,8 @@ class Environment:
             - W = left
          - unit = the number of units in which the food will move to
         """
-        row = len(self.env_status)
-        column = len(self.env_status[0])
+        row = self.shape[0]
+        column = self.shape[1]
         for y in range(row):
             for x in range(column):
                 if (self.food[x, y] > 0):
