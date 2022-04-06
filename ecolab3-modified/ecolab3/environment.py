@@ -18,9 +18,10 @@ def argmax_2darray(a):
     """
     return np.unravel_index(a.argmax(), a.shape)
 
+
 class Environment:
-    def __init__(self, shape=None, startfood=30, maxfood=40, maxfoodperunit=10, droprate=10, max_percentage=0,
-                 rain_intensity=0, percentage_dry=0):
+    def __init__(self, shape=None, startfood=40, maxfood=80, maxfoodperunit=20, droprate=10, amountPerDrop=10,
+                 max_percentage=0, rain_intensity=0, percentage_dry=0):
         """
         Create the environment
         Parameters:
@@ -39,6 +40,7 @@ class Environment:
         # reduce depending on the rain intensity
         self.maxfood = round(maxfood / 10) * 10  # maximum it can grow to, should be in increments of 10
         self.droprate = droprate  # how many new items of food added per step
+        self.amountPerDrop = amountPerDrop  # quantity of food per drop
         self.shape = shape  # shape of the environment
         self.maxfoodperunit = round(maxfoodperunit / 10) * 10  # decide the max food size per unit
         self.startfood = round(startfood / 10) * 10  # starting point of food, should be in increments of 10
@@ -53,11 +55,15 @@ class Environment:
         """
         Generate value for rain intensity.
         """
-        if val is None:
-            # Generate new intensity:
-            newIntensity = np.random.randint(0, 100) / 100
+        chanceOfRain = 70
+        if np.random.randint(0, 100) < chanceOfRain:
+            if val is None:
+                # Generate new intensity:
+                newIntensity = np.random.randint(0, 100) / 100
+            else:
+                newIntensity = val
         else:
-            newIntensity = val
+            newIntensity = 0
 
         self.rainFall = newIntensity
 
@@ -70,7 +76,7 @@ class Environment:
     def getLevelIncrease(self, currentLevel):
         """
         Using the value of rainfall (+/- 10%), calculate the increase in water level it would cause.
-        -- At rain intensity 'x', the increase would be 'x / 5'.
+        -- At rain intensity 'x', the increase would be 'x / 5' --
         """
         percentChange = np.random.randint(-10, +10) / 100
         increase = (self.rainFall + (self.rainFall * percentChange)) / 5
@@ -81,6 +87,20 @@ class Environment:
             return 1
         else:
             return newLevel
+
+    def getPheromoneDecrease(self, currentLevel):
+        """
+        Using the value of rainfall, calculate the effect it would have on reducing the pheromone levels.
+        """
+        if currentLevel is not 0:
+            decrease = self.rainFall / 5
+
+            newLevel = currentLevel - decrease
+
+            if newLevel >= 0:
+                return newLevel
+
+        return 0
 
     def calculateWaterLevels(self):
         """
@@ -93,65 +113,12 @@ class Environment:
         if self.rainFall is not 0:
             # If it is raining:
             self.waterLevels = [[self.getLevelIncrease(lvl) for lvl in row] for row in self.waterLevels]
+            # Also calculate the effects on pheromones:
+            self.pheromone = [[self.getPheromoneDecrease(lvl) for lvl in row] for row in self.pheromone]
         else:
             # If it isn't raining:
-            self.waterLevels = [[lvl - decayValue if lvl > decayValue else 0 for lvl in row] for row in self.waterLevels]
-
-    """
-    def get_rain_intensity(self):
-        #Returns rain intensity
-        return self.rain_intensity
-
-    def set_rain_intensity(self, intensity):
-        #Set rain intensity
-        self.rain_intensity = intensity
-
-    def change_env_rain(self):
-        #Change the wet lands randomly depending on the intensity of the rain
-        intensity = self.get_rain_intensity()
-        rowLen = self.env_status.shape[0]
-        colLen = self.env_status.shape[1]
-        number_of_blocks = len(self.env_status.flatten())
-        max_n_wet = intensity * self.max_percentage * number_of_blocks  # decide max number of wet land blocks
-        # count number of wet blocks currently
-        counter = 0
-        for x in self.env_status:
-            counter += x.count(1)
-            if (counter < max_n_wet):
-                # generate wet lands if it is not at max limit
-                n_generate_wet = np.random.randint(max_n_wet - counter)
-                for i in range(n_generate_wet):
-                    valid_change = False
-                    n_row, n_column = 0, 0
-                    while valid_change is False:
-                        n_row = np.random.randint(rowLen)
-                        n_column = np.random.randint(colLen)
-                        if self.env_status[n_row, n_column] == 0:
-                            valid_change = True
-                    self.set_env_rain([n_row, n_column])
-
-    def change_env_dry(self):
-        #Change wet lands to dry lands with a default percentage
-        for row in self.env_status:
-            for current_unit in row:
-                if current_unit == 1:
-                    change_dry = np.random.rand()
-                    if change_dry <= self.percentage_dry:
-                        row[row.index(current_unit)] = 0  # changed to dry
-
-    def get_env_status(self, position):
-        #Returns the environment status
-        return self.env_status[int(position[0]), int(position[1])]
-
-    def set_env_rain(self, position):
-        #Set status of land to rain
-        self.env_status[int(position[0]), int(position[1])] = 1
-
-    def set_env_dry(self, position):
-        #Set status of land to dry
-        self.env_status[int(position[0]), int(position[1])] = 0
-        
-    """
+            self.waterLevels = [[lvl - decayValue if lvl > decayValue else 0 for lvl in row]
+                                for row in self.waterLevels]
 
     def get_pheromone(self, position):
         """
@@ -163,9 +130,8 @@ class Environment:
         """
         Reduce the amount of pheromone at position by amount with 0 being the least it can be reduced to
         """
-        if (self.pheromone[int(position[0]), int(position[1])] == 0):
-            self.pheromone[int(position[0]), int(position[1])] = 0
-        elif ((self.pheromone[int(position[0]), int(position[1])] - amount) < 0):
+        lvl = self.pheromone[int(position[0]), int(position[1])]
+        if lvl <= 0 or lvl - amount <= 0:
             self.pheromone[int(position[0]), int(position[1])] = 0
         else:
             self.pheromone[int(position[0]), int(position[1])] -= amount
@@ -174,9 +140,8 @@ class Environment:
         """
         Increase the amount of pheromone at position by amount with 1 being the most it can be increased to
         """
-        if (self.pheromone[int(position[0]), int(position[1])] == 1):
-            self.pheromone[int(position[0]), int(position[1])] = 1
-        elif ((self.pheromone[int(position[0]), int(position[1])] + amount) > 1):
+        lvl = self.pheromone[int(position[0]), int(position[1])]
+        if lvl >= 1 or lvl + amount >= 1:
             self.pheromone[int(position[0]), int(position[1])] = 1
         else:
             self.pheromone[int(position[0]), int(position[1])] += amount
@@ -190,10 +155,22 @@ class Environment:
     def reduce_food(self, position, amount=1):
         """
         Reduce the amount of food at position by amount
-        (note, doesn't check this doesn't go negative)
         """
-        if self.get_food(position) > 0:
+        lvl = self.food[int(position[0]), int(position[1])]
+        if lvl <= 0 or lvl - amount <= 0:
+            self.food[int(position[0]), int(position[1])] = 0
+        else:
             self.food[int(position[0]), int(position[1])] -= amount
+
+    def increase_food(self, position, amount):
+        """
+        Increase the amount of food at position
+        """
+        lvl = self.food[int(position[0]), int(position[1])]
+        if lvl >= self.maxfoodperunit or lvl + amount >= self.maxfoodperunit:
+            self.food[int(position[0]), int(position[1])] = self.maxfoodperunit
+        else:
+            self.food[int(position[0]), int(position[1])] += amount
 
     def get_loc_of_food(self, pos, sense):
         return self.get_loc_of_target(pos, sense, True)
@@ -241,17 +218,19 @@ class Environment:
         """
         Puts food randomly on the map with size that is random
         """
-        row = self.shape[0]
-        column = self.shape[1]  # column is going to be same for every row
+        # TODO: i don't think we actually need this, we could just have it put in as part of the grow() method.
+        self.grow(round(self.startfood / 10))
+        """
+        If we end up needed it, I cleaned up the code:
         for i in range(round(self.startfood / 10)):
-            dropped_successfully = False
-            while (dropped_successfully == False):
-                n_row = np.random.randint(row)
-                n_column = np.random.randint(column)
-                # add food to unit if the added size will be less than the maximum allowed food to each unit area
-                if ((self.food[n_row, n_column] - self.maxfoodperunit) >= 10):
-                    self.food[n_row, n_column] += self.droprate
-                    dropped_successfully = True
+            # Get (randomised) location to add food:
+            location = self.get_random_location()
+            # Make sure it is a valid drop location:
+            while (self.food[location[0], location[1]] + self.amountPerDrop) >= self.maxfoodperunit:
+                location = self.get_random_location()
+            # Drop the food at the location:
+            self.food[location[0], location[1]] += self.amountPerDrop
+        """
 
     def check_position(self, position):
         """
@@ -300,7 +279,7 @@ class Environment:
                             self.food[x, y] = 0
                             exit()
                         case "E":
-                            # To go right so must go towards the end of the array
+                            # To go right so must go towards the end of the subarray
                             new_x = x + unit
                             if (new_x >= column):
                                 new_y = column
@@ -316,7 +295,7 @@ class Environment:
                             self.food[x, y] = 0
                             exit()
                         case "W":
-                            # To go left so must go towards the start of the array
+                            # To go left so must go towards the start of the subarray
                             new_x = x - unit
                             if (new_x <= 0):
                                 new_x = 0
@@ -336,10 +315,27 @@ class Environment:
         #    p = np.random.randint([0,0],self.shape)
         # return p
 
-    def grow(self):
+    def grow(self, numDrops=None):
         """
         Adds more food (random locations) 
          - amount added controlled by self.droprate, self.maxfood and self.maxfoodperunit
+        """
+        if numDrops is None:
+            numDrops = self.droprate
+        for i in range(0, numDrops):
+            totalFood = np.sum(self.food)
+            # If the maximum amount of food in the environment is reached:
+            if totalFood >= self.maxfood or (totalFood + self.amountPerDrop) >= self.maxfood:
+                # Break out of the loop, stopping the increase:
+                break
+            # Get (randomised) location to add food:
+            location = self.get_random_location()
+            # Make sure it is a valid drop location:
+            while (self.food[location[0], location[1]] + self.amountPerDrop) >= self.maxfoodperunit:
+                location = self.get_random_location()
+            # Drop the food at the location:
+            self.food[location[0], location[1]] += self.amountPerDrop
+
         """
         stop_drop = False  # if droprate reached or max_food reached, will stop drop
         dropped_amount = 0
@@ -362,3 +358,4 @@ class Environment:
                 stop_drop = True
             elif (dropped_amount >= self.droprate):
                 stop_drop = True
+        """

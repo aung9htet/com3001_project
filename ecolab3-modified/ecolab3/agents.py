@@ -103,37 +103,6 @@ class Agent:
         # Return the position([x,y]) of the pheromones closest/furthest from the nest:
         return positions.flatten()[targetDistance]
 
-    def returnToNest(self, env, agents):
-        """
-        Move towards the nest. If at the nest, deposit food.
-        """
-        # If returning to nest:
-        if self.isReturningToNest:
-            # Get nest pos:
-            nestPos = getNest(agents).getPos()
-
-            if (nestPos == self.position):
-                # Deposit Food:
-                self.inNest = True
-                self.isReturningToNest = False
-                if self.isCarryingFood:
-                    getNest(agents).depositFood()
-                    self.isCarryingFood = False
-            else:
-                # Get direction of travel:
-                dy = float(nestPos[1]) - self.position[1]
-                dx = float(nestPos[0]) - self.position[0]
-                direction = np.tan(dy / dx)
-
-                # Move towards the nest:
-                delta = np.round(np.array([np.cos(direction), np.sin(direction)]) * self.speed)
-                self.tryMove(self.position + delta, env)
-
-                # Place pheromones over the path:
-                for i in range(self.position[0], self.position[0] + delta[0]):
-                    for j in range(self.position[1], self.position[1] + delta[1]):
-                        env.increase_pheromone([i, j], 0.1)
-
     # TODO: REMOVE THIS AFTER REMOVING RABBIT & FOX AGENTS!!!!
     def tryMove(self, newPosition, env):
         if env.check_position(newPosition):
@@ -434,6 +403,37 @@ class Scout(Agent):
                 self.isReturningToNest = True
             else:
                 self.lookForFood(env)
+
+    def returnToNest(self, env, agents):
+        """
+        Move towards the nest. If at the nest, deposit food.
+        """
+        # If returning to nest:
+        if self.isReturningToNest:
+            # Get nest pos:
+            nestPos = getNest(agents).getPos()
+
+            if (nestPos == self.position):
+                # Deposit Food:
+                self.inNest = True
+                self.isReturningToNest = False
+                if self.isCarryingFood:
+                    getNest(agents).depositFood()
+                    self.isCarryingFood = False
+            else:
+                # Get direction of travel:
+                dy = float(nestPos[1]) - self.position[1]
+                dx = float(nestPos[0]) - self.position[0]
+                direction = np.tan(dy / dx)
+
+                # Move towards the nest:
+                delta = np.round(np.array([np.cos(direction), np.sin(direction)]) * self.speed)
+                self.tryMove(self.position + delta, env)
+
+                # Place pheromones over the path:
+                for i in range(self.position[0], self.position[0] + delta[0]):
+                    for j in range(self.position[1], self.position[1] + delta[1]):
+                        env.increase_pheromone([i, j], 0.2)
 
     def eat(self, env, agents):
         self.workerEat(env, agents, self.pheromoneRange, self.vision)
