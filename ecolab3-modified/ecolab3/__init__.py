@@ -28,7 +28,7 @@ def run_ecolab(env, agents, Niterations=1000, earlystop=True):
             agent.eat(env, agents)
             a = agent.breed(agents)
             if a is not None:
-                agents.append(a)
+                [agents.append(newAgent) for newAgent in a]
 
         # removed dead agents
         agents = [a for a in agents if not a.die()]
@@ -37,9 +37,13 @@ def run_ecolab(env, agents, Niterations=1000, earlystop=True):
 
         # grow more grass
         env.grow()
+        # Decrease pheromone levels:
+        env.fadePheromones()
+        # Do rainfall:
+        env.causeRainFall()
 
         # record the grass and agent locations (and types) for later plotting & analysis
-        record.append({'grass': env.grass.copy(), 'agents': np.array([a.summary_vector() for a in agents])})
+        record.append({'food': env.food.copy(), 'agents': np.array([a.summary_vector() for a in agents])})
 
         # stop early if we run out of rabbits and foxes
         if earlystop:
@@ -59,7 +63,7 @@ def draw_animation(fig, record, fps=20, saveto=None):
     # rc('animation', html='html5')
     if len(record) == 0: return None
 
-    im = plt.imshow(np.zeros_like(record[0]['grass']), interpolation='none', aspect='auto', vmin=0, vmax=3, cmap='gray')
+    im = plt.imshow(np.zeros_like(record[0]['food']), interpolation='none', aspect='auto', vmin=0, vmax=3, cmap='gray')
     ax = plt.gca()
 
     foxesplot = ax.plot(np.zeros(1), np.zeros(1), 'bo', markersize=10)
@@ -91,19 +95,24 @@ def draw_animation(fig, record, fps=20, saveto=None):
 
 def get_agent_counts(record):
     """
-    Returns the number of foxes, rabbits and amount of grass in a N x 3 numpy array
-    the three columns are (Foxes, Rabbits, Grass).
+    Returns the number of workers, scouts, queens, nests, & food in an N x 5 numpy array
+    the three columns are (Worker, Scout, Queen, Nest, Food).
     """
     counts = []
     for r in record:
         ags = r['agents']
         if len(ags) == 0:
+            nW = 0
+            nS = 0
+            nQ = 0
+            nN = 0
             nF = 0
-            nR = 0
         else:
-            nF = np.sum(ags[:, -1] == 0)
-            nR = np.sum(ags[:, -1] == 1)
-        nG = np.sum(r['grass'])
-        counts.append([nF, nR, nG])
+            nW = np.sum(ags[:, -1] == 0)
+            nS = np.sum(ags[:, -1] == 1)
+            nQ = np.sum(ags[:, -1] == 1)
+            nN = np.sum(ags[:, -1] == 1)
+        nF = np.sum(r['food'])
+        counts.append([nW, nS, nQ, nN, nF])
     counts = np.array(counts)
     return counts

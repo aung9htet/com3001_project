@@ -33,8 +33,8 @@ class Agent:
     Base class for all types of agent
     """
 
-    def __init__(self, position, age, food, speed, lastBreed, maxAge, starveThresh, vision, pheromoneRange, inNest=True,
-                 breedFood=None, breedFreq=None, isCarryingFood=False, isReturningToNest=False):
+    def __init__(self, position, age, food, speed, lastBreed, maxAge, starveThresh, vision=1, pheromoneRange=1,
+                 inNest=True, breedFood=None, breedFreq=None, isCarryingFood=False, isReturningToNest=False):
         """
         breedFood = quantity of food required to breed
         breedFreq = how many iterations between breed attempts
@@ -42,9 +42,11 @@ class Agent:
         isCarryingFood = whether or not the agent is carrying food
         isReturningToNest = if the agent is returning to the nest
         starveThresh = how low food levels have to be before trying to eat
+        vision = how far the agent can see
+        pheromoneRange = how far the agent can sense pheromones
         inNest = whether or not the agent is inside the nest
         age = age of agent in iterations
-        food = how much food the agent has 'inside' (0=empty, 1=full)
+        food = quantity of food within the agent
         position = x,y position of the agent
         speed = how fast it can move (tiles/iteration)
         lastBreed = how long ago it last reproduced (iterations)
@@ -226,29 +228,6 @@ class Nest(Agent):
         elif type(ant) == Queen:
             self.population[2] += 1
 
-    """
-
-    def decideNQueen(self, queen, set_food, set_population):
-        #Decide on whether to add queen or not
-        if (self.food > set_food) and (sum(self.population) >= set_population * self.agent_count):
-            queen.breed(check_conflict=True)
-            self.addPopulation += 1
-
-    def decideBreed(self, queen, worker, scout):
-        #Decide on the breed to be made
-        # 3/4 of the population is female workers and scouts
-        if ((sum(self.population) % 4) == 0):
-            self.addPopulation(1)
-        else:
-            # scout when food threshold is low
-            if (self.food <= self.starveThresh):
-                queen.breed(breedType=Scout)
-            else:
-                queen.breed(breedType=Worker)
-            self.addPopulation(1)
-    
-    """
-
     def depositFood(self, amount=2):
         self.food += amount
 
@@ -269,31 +248,29 @@ class Queen(Agent):
     """
     Required for calculating the population of the nest
     """
-    breedFood = 20
-    breedFreq = 70
-    maxAge = 300
+    breedFood = 40
+    breedFreq = 50
+    maxAge = 350
 
     def __init__(self, position, age=None, food=10, maxfood=100, speed=1, lastBreed=0, starveThresh=5):
         if age is None:
             age = np.random.randint(self.maxAge)
-        super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh, breedFood=self.breedFood)
+        super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh, breedFood=self.breedFood,
+                         inNest=True)
         self.maxfood = maxfood
 
     def eat(self, env, agents):
         if self.food < self.maxfood:
             # Get food from nest:
-            getNest(agents).reduceFood()
+            getNest(agents).reduceFood(2)
             # Eat:
-            self.food += 1
+            self.food += 3
 
     def breed(self, agents):
         """
             This will either return None, or a new agent object
             Having breed freq/food be none means never breed
         """
-        # TODO: ant queen lays up to 800 eggs in a day
-        # TODO: might need this one explained later.
-
         if self.breedFreq is None or self.breedFood is None:
             return None
 
@@ -304,6 +281,8 @@ class Queen(Agent):
             newAgents = self.createNewAgents(agents)
             self.food = self.food / 2
 
+        return newAgents
+
     def createNewAgents(self, agents):
         """
         Using the information from the Nest, decide which type of ant the new agent should be.
@@ -313,18 +292,17 @@ class Queen(Agent):
         newAgents = np.empty(numAgents, dtype=Agent)
         # The portion of the Queen's food to give to the new agents:
         foodForAgent = (self.food / 2) / numAgents
-        self.food = self.food / 2
         # How much food is stored in the nest in comparison to the nest's starve threshold:
         nest = getNest(agents)
         foodRatio = nest.food / nest.starveThresh
 
-        for agent in newAgents:
+        for i in range(len(newAgents)):
             # Decide which type of agent to create:
             agentCaste = np.random.randint(0, 100)
             if agentCaste < 75:
-                agent = type(Worker)(self.position, 0, foodForAgent, 1, 0, 20, 3, 10, 5)
+                newAgents[i] = type(Worker)(self.position, 0, foodForAgent, 1, 0, 20, 3, 4, 10)
             else:
-                agent = type(Scout)(self.position, 0, foodForAgent, 3, 0, 20, 2, 10, 5)
+                newAgents[i] = type(Scout)(self.position, 0, foodForAgent, 3, 0, 20, 2, 10, 5)
 
         # Check if new queen needs to be created:
         if self.age > (2 * self.maxAge) / 3:

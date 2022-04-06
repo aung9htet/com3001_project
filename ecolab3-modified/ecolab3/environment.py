@@ -45,17 +45,25 @@ class Environment:
         self.maxfoodperunit = round(maxfoodperunit / 10) * 10  # decide the max food size per unit
         self.startfood = round(startfood / 10) * 10  # starting point of food, should be in increments of 10
         self.food = np.zeros(self.shape)  # will be randomised later on map
-        self.pheromone = np.zeros(self.shape)  # set all pheromone trail as zero initially
+        self.pheromones = np.zeros(self.shape)  # set all pheromone trail as zero initially
         self.waterLevels = np.zeros(self.shape)  # 0 being completely dry, 1 being completely waterlogged
         self.rainFall = 0  # Intensity of rainfall, 0 being none, 1 being heavy
         self.max_percentage = max_percentage  # decide the max number of wet lands to be produced
         self.percentage_dry = percentage_dry  # decide to change wet land to dry
 
-    def generateRainIntensity(self, val=None):
+    def causeRainFall(self):
+        """
+        Run all methods related to causing rainfall.
+        """
+        # Set rain intensity for current iteration:
+        self.generateRainIntensity()
+        # Cause rain to effect environment:
+        self.calculateWaterLevels()
+
+    def generateRainIntensity(self, val=None, chanceOfRain=70):
         """
         Generate value for rain intensity.
         """
-        chanceOfRain = 70
         if np.random.randint(0, 100) < chanceOfRain:
             if val is None:
                 # Generate new intensity:
@@ -107,14 +115,13 @@ class Environment:
         Using the current rainfall & water levels, calculate the water levels of each position after
         an iteration of rain.
         """
-        # TODO: need to figure out a decay for water levels when it's dry!! (For now it's -0.2 per iteration)
         decayValue = 0.2
 
         if self.rainFall is not 0:
             # If it is raining:
             self.waterLevels = [[self.getLevelIncrease(lvl) for lvl in row] for row in self.waterLevels]
             # Also calculate the effects on pheromones:
-            self.pheromone = [[self.getPheromoneDecrease(lvl) for lvl in row] for row in self.pheromone]
+            self.pheromones = [[self.getPheromoneDecrease(lvl) for lvl in row] for row in self.pheromones]
         else:
             # If it isn't raining:
             self.waterLevels = [[lvl - decayValue if lvl > decayValue else 0 for lvl in row]
@@ -124,27 +131,27 @@ class Environment:
         """
         Returns the pheromone amount at that point
         """
-        return self.pheromone[int(position[0]), int(position[1])]
+        return self.pheromones[int(position[0]), int(position[1])]
 
     def reduce_pheromone(self, position, amount):
         """
         Reduce the amount of pheromone at position by amount with 0 being the least it can be reduced to
         """
-        lvl = self.pheromone[int(position[0]), int(position[1])]
+        lvl = self.pheromones[int(position[0]), int(position[1])]
         if lvl <= 0 or lvl - amount <= 0:
-            self.pheromone[int(position[0]), int(position[1])] = 0
+            self.pheromones[int(position[0]), int(position[1])] = 0
         else:
-            self.pheromone[int(position[0]), int(position[1])] -= amount
+            self.pheromones[int(position[0]), int(position[1])] -= amount
 
     def increase_pheromone(self, position, amount):
         """
         Increase the amount of pheromone at position by amount with 1 being the most it can be increased to
         """
-        lvl = self.pheromone[int(position[0]), int(position[1])]
+        lvl = self.pheromones[int(position[0]), int(position[1])]
         if lvl >= 1 or lvl + amount >= 1:
-            self.pheromone[int(position[0]), int(position[1])] = 1
+            self.pheromones[int(position[0]), int(position[1])] = 1
         else:
-            self.pheromone[int(position[0]), int(position[1])] += amount
+            self.pheromones[int(position[0]), int(position[1])] += amount
 
     def get_food(self, position):
         """
@@ -188,7 +195,7 @@ class Environment:
         if isFood:
             target = self.food
         else:
-            target = self.pheromone
+            target = self.pheromones
         boundary = 10
         pos = position + boundary
         targetWithBoundary = np.zeros(np.array(target.shape) + boundary * 2)
@@ -324,26 +331,9 @@ class Environment:
             # Drop the food at the location:
             self.food[location[0], location[1]] += self.amountPerDrop
 
+    def fadePheromones(self):
         """
-        stop_drop = False  # if droprate reached or max_food reached, will stop drop
-        dropped_amount = 0
-        while (stop_drop == False):
-            check_food = np.sum(self.food)
-            loc = self.get_random_location()
-            food_amount = 10
-            # check for total amount of food possible
-            if ((self.maxfood - check_food) < 10):
-                food_amount = check_food - self.maxfood
-            elif ((self.maxfood - check_food) < 0):
-                food_amount = 0
-            # check for total amount of food possible per unit
-            if ((self.food[loc[0], loc[1]] + food_amount) - self.maxfoodperunit) < 0:
-                food_amount = self.maxfoodperunit - self.food[loc[0], loc[1]]
-            self.food[loc[0], loc[1]] += food_amount
-            dropped_amount += food_amount
-            # check whether to stop dropping
-            if (check_food < self.maxfood):
-                stop_drop = True
-            elif (dropped_amount >= self.droprate):
-                stop_drop = True
+        Reduce the concentration of pheromones over time:
         """
+        decay = 0.1
+        self.pheromones = [[lvl - decay if lvl > decay else 0 for lvl in row] for row in self.pheromones]
