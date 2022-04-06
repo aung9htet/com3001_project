@@ -26,8 +26,9 @@ def run_ecolab(env, agents, Niterations=1000, earlystop=True):
         for agent in agents:
             agent.move(env, agents)
             agent.eat(env, agents)
-            a = agent.breed()
-            if a is not None: agents.append(a)
+            a = agent.breed(agents)
+            if a is not None:
+                agents.append(a)
 
         # removed dead agents
         agents = [a for a in agents if not a.die()]

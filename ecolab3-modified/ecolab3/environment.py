@@ -218,19 +218,7 @@ class Environment:
         """
         Puts food randomly on the map with size that is random
         """
-        # TODO: i don't think we actually need this, we could just have it put in as part of the grow() method.
         self.grow(round(self.startfood / 10))
-        """
-        If we end up needed it, I cleaned up the code:
-        for i in range(round(self.startfood / 10)):
-            # Get (randomised) location to add food:
-            location = self.get_random_location()
-            # Make sure it is a valid drop location:
-            while (self.food[location[0], location[1]] + self.amountPerDrop) >= self.maxfoodperunit:
-                location = self.get_random_location()
-            # Drop the food at the location:
-            self.food[location[0], location[1]] += self.amountPerDrop
-        """
 
     def check_position(self, position):
         """
