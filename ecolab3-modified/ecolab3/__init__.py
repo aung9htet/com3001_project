@@ -66,20 +66,34 @@ def draw_animation(fig, record, fps=20, saveto=None):
     im = plt.imshow(np.zeros_like(record[0]['food']), interpolation='none', aspect='auto', vmin=0, vmax=3, cmap='gray')
     ax = plt.gca()
 
-    foxesplot = ax.plot(np.zeros(1), np.zeros(1), 'bo', markersize=10)
-    rabbitsplot = ax.plot(np.zeros(1), np.zeros(1), 'yx', markersize=10, mew=3)
+    # foxesplot = ax.plot(np.zeros(1), np.zeros(1), 'bo', markersize=10)
+    # rabbitsplot = ax.plot(np.zeros(1), np.zeros(1), 'yx', markersize=10, mew=3)
+    workerPlot = ax.plot(np.zeros(1), np.zeros(1), 'bx', markersize=10, mew=3)
+    scoutPlot = ax.plot(np.zeros(1), np.zeros(1), 'rx', markersize=10, mew=3)
+    queenPlot = ax.plot(np.zeros(1), np.zeros(1), 'mx', markersize=10, mew=3)
+    nestPlot = ax.plot(np.zeros(1), np.zeros(1), 'ko', markersize=10)
 
     def animate_func(i):
-        im.set_array(record[i]['grass'])
+        im.set_array(record[i]['food'])
         ags = record[i]['agents']
         if len(ags) == 0:
-            rabbitsplot[0].set_data([], [])
-            foxesplot[0].set_data([], [])
+            workerPlot[0].set_data([], [])
+            scoutPlot[0].set_data([], [])
+            queenPlot[0].set_data([], [])
+            nestPlot[0].set_data([], [])
             return
-        coords = ags[ags[:, -1].astype(bool), 0:2]
-        rabbitsplot[0].set_data(coords[:, 1], coords[:, 0])
-        coords = ags[~ags[:, -1].astype(bool), 0:2]
-        foxesplot[0].set_data(coords[:, 1], coords[:, 0])
+        # Plot workers:
+        coords = np.array([[x, y] for x, y, z in ags if z == 0])
+        workerPlot[0].set_data(coords[:, 1], coords[:, 0])
+        # Plot scouts:
+        coords = np.array([[x, y] for x, y, z in ags if z == 1])
+        scoutPlot[0].set_data(coords[:, 1], coords[:, 0])
+        # Plot Queens:
+        coords = np.array([[x, y] for x, y, z in ags if z == 2])
+        queenPlot[0].set_data(coords[:, 1], coords[:, 0])
+        # Plot Nest:
+        coords = np.array([[x, y] for x, y, z in ags if z == 3])
+        nestPlot[0].set_data(coords[:, 1], coords[:, 0])
         # return [im]#,rabbits,foxes]
 
     anim = animation.FuncAnimation(
@@ -106,7 +120,6 @@ def get_agent_counts(record):
             nS = 0
             nQ = 0
             nN = 0
-            nF = 0
         else:
             nW = np.sum(ags[:, -1] == 0)
             nS = np.sum(ags[:, -1] == 1)
