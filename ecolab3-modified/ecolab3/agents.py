@@ -103,7 +103,6 @@ class Agent:
         # Return the position([x,y]) of the pheromones closest/furthest from the nest:
         return positions.flatten()[targetDistance]
 
-    # TODO: REMOVE THIS AFTER REMOVING RABBIT & FOX AGENTS!!!!
     def tryMove(self, newPosition, env):
         if env.check_position(newPosition):
             self.position = newPosition
@@ -115,8 +114,7 @@ class Agent:
         else:
             vect = relativeTargetPos / calcdist(relativeTargetPos)
             newPos = self.position + vect * self.speed, env
-            if env.check_position(newPos):
-                self.position = newPos
+            self.tryMove(newPos, env)
 
     def search(self, env):
         # no food in range, pick a random direction...
@@ -127,6 +125,13 @@ class Agent:
 
     def eat(self, env, agents):
         pass  # to implement by child class
+
+    def leavePheromones(self, start, finish, env, amount=0.1):
+        """
+        Using list comprehension, leave pheromones over the path travelled by an ant.
+        """
+        [[env.increase_pheromone([i, j], amount) for j in range(start[1], finish[1])] for i in
+         range(start[0], finish[0])]
 
     def workerEat(self, env, agents, pheromoneRange, vision):
         """
@@ -216,7 +221,7 @@ class Nest(Agent):
         """
         Decide on whether to add queen or not
         """
-        if ((self.food > set_food) and (self.population >= set_population * self.agent_count)):
+        if (self.food > set_food) and (sum(self.population) >= set_population * self.agent_count):
             queen.breed(check_conflict=True)
             self.addPopulation += 1
 
@@ -278,6 +283,8 @@ class Queen(Agent):
             This will either return None, or a new agent object
             Having breed freq/food be none means never breed
         """
+        # TODO: ant queen lay 800 eggs in a day
+        # TODO: might need this one explained later.
         if self.breedFreq is None or self.breedFood is None:
             return None
         new_agent = None
@@ -333,24 +340,42 @@ class Worker(Agent):
         if self.position == getNest(agents).position or self.inNest:
             self.inNest = True
             if self.isCarryingFood:
+                getNest(agents).depositFood()
                 self.isCarryingFood = False
+            return
+        # If on top of food:
+        if env.get_food(self.position) > 0:
+            # Pick up food:
+            self.isCarryingFood = True
+            env.reduce_food(self.position)
+            # Return to nest, leaving pheromones:
+            self.isReturningToNest = True
+            return
         # If in nest and fed enough:
         if self.inNest and self.food > self.starveThresh * 2:
             trail = self.followTrail(env, self.pheromoneRange, agents)
             if trail is not None:
                 self.attemptMoveToTarget(trail, env)
         else:
-            trail = self.followTrail(env, self.pheromoneRange, agents)
-            if trail is not None:
-                self.attemptMoveToTarget(trail, env)
-                if self.isReturningToNest:
-                    # Place pheromones over the path:
-                    for i in range(self.position[0], trail[0]):
-                        for j in range(self.position[1], trail[1]):
-                            env.increase_pheromone([i, j], 0.1)
+            # Check if agent can see food:
+            foodPos = env.get_loc_of_food(self.position, self.vision)
+            if foodPos is not None:
+                startPos = self.position
+                # Attempt to move to target, leaving pheromones along the way:
+                self.attemptMoveToTarget(foodPos, env)
+                self.leavePheromones(startPos, self.position, env)
             else:
-                # Try to return to nest if lost:
-                self.isReturningToNest = True
+                # If not, continue to follow the trail:
+                trail = self.followTrail(env, self.pheromoneRange, agents)
+                if trail is not None:
+                    startPos = self.position
+                    self.attemptMoveToTarget(trail, env)
+                    if self.isReturningToNest:
+                        # Leave pheromones over the path:
+                        self.leavePheromones(startPos, self.position, env)
+                else:
+                    # Try to return to nest if lost:
+                    self.isReturningToNest = True
 
     def eat(self, env, agents):
         self.workerEat(env, agents, self.pheromoneRange, self.vision)
@@ -391,11 +416,11 @@ class Scout(Agent):
             self.returnToNest(env, agents)
         else:
             # If in nest & in a state to search for food:
-            if (self.inNest and self.food > self.starveThresh * 3):
+            if self.inNest and self.food > self.starveThresh * 2:
                 self.lookForFood(env)
                 self.inNest = False
             # If on top of food:
-            if (env.get_food(self.position) > 0):
+            if env.get_food(self.position) > 0:
                 # Pick up food:
                 self.isCarryingFood = True
                 env.reduce_food(self.position)
@@ -413,7 +438,7 @@ class Scout(Agent):
             # Get nest pos:
             nestPos = getNest(agents).getPos()
 
-            if (nestPos == self.position):
+            if nestPos == self.position:
                 # Deposit Food:
                 self.inNest = True
                 self.isReturningToNest = False
@@ -428,12 +453,11 @@ class Scout(Agent):
 
                 # Move towards the nest:
                 delta = np.round(np.array([np.cos(direction), np.sin(direction)]) * self.speed)
+                startPos = self.position
                 self.tryMove(self.position + delta, env)
 
                 # Place pheromones over the path:
-                for i in range(self.position[0], self.position[0] + delta[0]):
-                    for j in range(self.position[1], self.position[1] + delta[1]):
-                        env.increase_pheromone([i, j], 0.2)
+                self.leavePheromones(startPos, self.position, env, 0.2)
 
     def eat(self, env, agents):
         self.workerEat(env, agents, self.pheromoneRange, self.vision)
