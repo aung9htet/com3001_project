@@ -15,17 +15,10 @@ def calcdist(v):
 
 def getNest(agents):
     """
-    Only works assuming there's one nest per simulation.
-    ----------- NEEDS TO BE CHANGED IF NOT -----------
+    Returns the nest agent from the agents array:
     """
-    return Nest([agent for agent in agents if type(agent) == Nest][0])
-
-
-def containsType(a, t):
-    """
-    Check if there is a specific type of element within an array.
-    """
-    return [x for x in a if type(x) is t] != []
+    nest = [agent for agent in agents if type(agent) == Nest][0]
+    return nest
 
 
 class Agent:
@@ -133,8 +126,8 @@ class Agent:
         """
         Using list comprehension, leave pheromones over the path travelled by an ant.
         """
-        [[env.increase_pheromone([i, j], amount) for j in range(start[1], finish[1])] for i in
-         range(start[0], finish[0])]
+        [[env.increase_pheromone([i, j], amount) for j in range(round(start[1]), round(finish[1]))] for i in
+         range(round(start[0]), round(finish[0]))]
 
     def workerEat(self, env, agents, pheromoneRange, vision):
         """
@@ -193,10 +186,7 @@ class Agent:
         return False
 
     def getPos(self):
-        if type(self) == Nest:
-            return self.position
-        else:
-            return np.array([x for x in self.position if type(x) != Environment]).flatten()
+        return np.array([x for x in self.position if type(x) != Environment]).flatten()
 
     def summary_vector(self):
         """
@@ -443,8 +433,6 @@ class Scout(Agent):
         if self.isReturningToNest:
             # Get nest pos:
             nestPos = getNest(agents).getPos()
-            print(getNest(agents))
-            print(getNest(agents).position)
 
             if np.array_equal(self.getPos(), nestPos):
                 # Deposit Food:
@@ -469,6 +457,7 @@ class Scout(Agent):
 
     def eat(self, env, agents):
         self.workerEat(env, agents, self.pheromoneRange, self.vision)
+
 
 """
 class Rabbit(Agent):

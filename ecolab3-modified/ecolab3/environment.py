@@ -131,59 +131,59 @@ class Environment:
         """
         Returns the pheromone amount at that point
         """
-        position = np.array([x for x in position if type(x) != Environment]).flatten()
-        return self.pheromones[int(position[0]), int(position[1])]
+        position = np.array([int(x) for x in position if type(x) != Environment]).flatten()
+        return self.pheromones[position[0]][position[1]]
 
     def reduce_pheromone(self, position, amount):
         """
         Reduce the amount of pheromone at position by amount with 0 being the least it can be reduced to
         """
-        position = np.array([x for x in position if type(x) != Environment]).flatten()
-        lvl = self.pheromones[int(position[0]), int(position[1])]
+        position = np.array([int(x) for x in position if type(x) != Environment]).flatten()
+        lvl = self.pheromones[position[0]][position[1]]
         if lvl <= 0 or lvl - amount <= 0:
-            self.pheromones[int(position[0]), int(position[1])] = 0
+            self.pheromones[position[0]][position[1]] = 0
         else:
-            self.pheromones[int(position[0]), int(position[1])] -= amount
+            self.pheromones[position[0]][position[1]] -= amount
 
     def increase_pheromone(self, position, amount):
         """
         Increase the amount of pheromone at position by amount with 1 being the most it can be increased to
         """
-        position = np.array([x for x in position if type(x) != Environment]).flatten()
-        lvl = self.pheromones[int(position[0]), int(position[1])]
+        position = np.array([int(x) for x in position if type(x) != Environment]).flatten()
+        lvl = self.pheromones[position[0]][position[1]]
         if lvl >= 1 or lvl + amount >= 1:
-            self.pheromones[int(position[0]), int(position[1])] = 1
+            self.pheromones[position[0]][position[1]] = 1
         else:
-            self.pheromones[int(position[0]), int(position[1])] += amount
+            self.pheromones[position[0]][position[1]] += amount
 
     def get_food(self, position):
         """
         Returns the amount of food at position
         """
-        position = np.array([x for x in position if type(x) != Environment]).flatten()
-        return self.food[int(position[0]), int(position[1])]
+        position = np.array([int(x) for x in position if type(x) != Environment]).flatten()
+        return self.food[position[0]][position[1]]
 
     def reduce_food(self, position, amount=1):
         """
         Reduce the amount of food at position by amount
         """
-        position = np.array([x for x in position if type(x) != Environment]).flatten()
-        lvl = self.food[int(position[0]), int(position[1])]
+        position = np.array([int(x) for x in position if type(x) != Environment]).flatten()
+        lvl = self.food[position[0]][position[1]]
         if lvl <= 0 or lvl - amount <= 0:
-            self.food[int(position[0]), int(position[1])] = 0
+            self.food[position[0]][position[1]] = 0
         else:
-            self.food[int(position[0]), int(position[1])] -= amount
+            self.food[position[0]][position[1]] -= amount
 
     def increase_food(self, position, amount):
         """
         Increase the amount of food at position
         """
-        position = np.array([x for x in position if type(x) != Environment]).flatten()
-        lvl = self.food[int(position[0]), int(position[1])]
+        position = np.array([int(x) for x in position if type(x) != Environment]).flatten()
+        lvl = self.food[position[0]][position[1]]
         if lvl >= self.maxfoodperunit or lvl + amount >= self.maxfoodperunit:
-            self.food[int(position[0]), int(position[1])] = self.maxfoodperunit
+            self.food[position[0]][position[1]] = self.maxfoodperunit
         else:
-            self.food[int(position[0]), int(position[1])] += amount
+            self.food[position[0]][position[1]] += amount
 
     def get_loc_of_food(self, position, sense):
         position = np.array([x for x in position if type(x) != Environment]).flatten()
@@ -212,6 +212,7 @@ class Environment:
         # we search just a circle within 'vision' tiles of 'pos' (these two commands build that search square)
         searchSquare = targetWithBoundary[int(pos[0] - vision):int(pos[0] + vision + 1),
                        int(pos[1] - vision):int(pos[1] + vision + 1)]
+        
         searchSquare[(np.arange(-vision, vision + 1)[:, None] ** 2 + np.arange(-vision, vision + 1)[None,
                                                                      :] ** 2) > vision ** 2] = -1
         return searchSquare
