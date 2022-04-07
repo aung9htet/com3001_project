@@ -212,7 +212,7 @@ class Environment:
         # we search just a circle within 'vision' tiles of 'pos' (these two commands build that search square)
         searchSquare = targetWithBoundary[int(pos[0] - vision):int(pos[0] + vision + 1),
                        int(pos[1] - vision):int(pos[1] + vision + 1)]
-        
+
         searchSquare[(np.arange(-vision, vision + 1)[:, None] ** 2 + np.arange(-vision, vision + 1)[None,
                                                                      :] ** 2) > vision ** 2] = -1
         return searchSquare

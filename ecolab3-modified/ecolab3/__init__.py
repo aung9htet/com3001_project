@@ -43,7 +43,8 @@ def run_ecolab(env, agents, Niterations=1000, earlystop=True):
         env.causeRainFall()
 
         # record the grass and agent locations (and types) for later plotting & analysis
-        record.append({'food': env.food.copy(), 'agents': np.array([a.summary_vector() for a in agents])})
+        record.append({'food': env.food.copy(), 'pheromones': env.pheromones.copy(),
+                       'agents': np.array([a.summary_vector() for a in agents])})
 
         # stop early if we run out of rabbits and foxes
         if earlystop:
@@ -70,17 +71,22 @@ def draw_animation(fig, record, fps=20, saveto=None):
     # rabbitsplot = ax.plot(np.zeros(1), np.zeros(1), 'yx', markersize=10, mew=3)
     workerPlot = ax.plot(np.zeros(1), np.zeros(1), 'bx', markersize=10, mew=3)
     scoutPlot = ax.plot(np.zeros(1), np.zeros(1), 'rx', markersize=10, mew=3)
-    queenPlot = ax.plot(np.zeros(1), np.zeros(1), 'mx', markersize=10, mew=3)
-    nestPlot = ax.plot(np.zeros(1), np.zeros(1), 'ko', markersize=10)
+    queenPlot = ax.plot(np.zeros(1), np.zeros(1), 'gx', markersize=10, mew=3)
+    nestPlot = ax.plot(np.zeros(1), np.zeros(1), 'yo', markersize=10)
+    # pheromonePlot = ax.plot(np.zeros(1), np.zeros(1), 'mo', markersize=10)
 
     def animate_func(i):
         im.set_array(record[i]['food'])
         ags = record[i]['agents']
+        phs = record[i]['pheromones']
         if len(ags) == 0:
             workerPlot[0].set_data([], [])
             scoutPlot[0].set_data([], [])
             queenPlot[0].set_data([], [])
             nestPlot[0].set_data([], [])
+            return
+        if len(phs) == 0:
+            # pheromonePlot[0].set_data([], [])
             return
         # Plot workers:
         coords = np.array([[x, y] for x, y, z in ags if z == 0])
@@ -94,6 +100,9 @@ def draw_animation(fig, record, fps=20, saveto=None):
         # Plot Nest:
         coords = np.array([[x, y] for x, y, z in ags if z == 3])
         nestPlot[0].set_data(coords[:, 1], coords[:, 0])
+        # Plot Pheromones:
+        # coords = np.array([[x, y] for x, y, z in phs])
+        # pheromonePlot[0].set_data(coords[:, 1], coords[:, 0])
         # return [im]#,rabbits,foxes]
 
     anim = animation.FuncAnimation(
