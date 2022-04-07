@@ -64,7 +64,7 @@ def draw_animation(fig, record, fps=20, saveto=None):
     # rc('animation', html='html5')
     if len(record) == 0: return None
 
-    im = plt.imshow(np.zeros_like(record[0]['food']), interpolation='none', aspect='auto', vmin=0, vmax=3, cmap='gray')
+    imF = plt.imshow(np.zeros_like(record[0]['food']), interpolation='none', aspect='auto', vmin=0, vmax=3, cmap='gray')
     ax = plt.gca()
 
     # foxesplot = ax.plot(np.zeros(1), np.zeros(1), 'bo', markersize=10)
@@ -72,21 +72,16 @@ def draw_animation(fig, record, fps=20, saveto=None):
     workerPlot = ax.plot(np.zeros(1), np.zeros(1), 'bx', markersize=10, mew=3)
     scoutPlot = ax.plot(np.zeros(1), np.zeros(1), 'rx', markersize=10, mew=3)
     queenPlot = ax.plot(np.zeros(1), np.zeros(1), 'gx', markersize=10, mew=3)
-    nestPlot = ax.plot(np.zeros(1), np.zeros(1), 'yo', markersize=10)
-    # pheromonePlot = ax.plot(np.zeros(1), np.zeros(1), 'mo', markersize=10)
+    nestPlot = ax.plot(np.zeros(1), np.zeros(1), 'yo', markersize=7.5)
 
     def animate_func(i):
-        im.set_array(record[i]['food'])
+        imF.set_array(record[i]['food'])
         ags = record[i]['agents']
-        phs = record[i]['pheromones']
         if len(ags) == 0:
             workerPlot[0].set_data([], [])
             scoutPlot[0].set_data([], [])
             queenPlot[0].set_data([], [])
             nestPlot[0].set_data([], [])
-            return
-        if len(phs) == 0:
-            # pheromonePlot[0].set_data([], [])
             return
         # Plot workers:
         coords = np.array([[x, y] for x, y, z in ags if z == 0])
@@ -100,9 +95,6 @@ def draw_animation(fig, record, fps=20, saveto=None):
         # Plot Nest:
         coords = np.array([[x, y] for x, y, z in ags if z == 3])
         nestPlot[0].set_data(coords[:, 1], coords[:, 0])
-        # Plot Pheromones:
-        # coords = np.array([[x, y] for x, y, z in phs])
-        # pheromonePlot[0].set_data(coords[:, 1], coords[:, 0])
         # return [im]#,rabbits,foxes]
 
     anim = animation.FuncAnimation(
