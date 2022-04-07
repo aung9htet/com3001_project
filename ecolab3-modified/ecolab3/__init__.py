@@ -1,5 +1,5 @@
 import numpy as np
-from ecolab3.agents import Rabbit, Fox, Worker, Scout, Nest
+from ecolab3.agents import Worker, Scout, Nest
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation

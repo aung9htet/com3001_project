@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+from ecolab3.environment import Environment
 
 
 # Helper functions to calculate distances
@@ -65,7 +65,6 @@ class Agent:
         self.position = position
         self.speed = speed
         self.lastBreed = lastBreed
-        self.agent_count = 0
 
     def breed(self, agents):
         pass
@@ -78,7 +77,7 @@ class Agent:
         Get the location of the pheromones that are either as far from the nest or as close
         to the nest as possible.
         """
-        searchSquare = env.generateSearchSquare(self.position, sense, False)
+        searchSquare = env.generateSearchSquare(self.getPos(), sense, False)
 
         if np.all(searchSquare <= 0):
             return None  # no target instances found
@@ -94,12 +93,12 @@ class Agent:
             for j in range(len(searchSquare[i])):
                 if searchSquare[i][j] > 0:
                     diff = np.array((center - j) * (-1), center - i)
-                    positions[i][j] = np.array(self.position[0] + diff[0], self.position[1] + diff[1])
+                    positions[i][j] = np.array(self.getPos()[0] + diff[0], self.getPos()[1] + diff[1])
                 else:
                     positions[i][j] = np.nan
 
         # Get distance for each position:
-        distances = np.array([[calcdistsqr(pos - getNest(agents).position)
+        distances = np.array([[calcdistsqr(pos - getNest(agents).getPos())
                                for pos in row if pos != np.nan] for row in positions])
 
         # If the agent is returning to the nest, get the pheromone closest to the nest.
@@ -119,12 +118,12 @@ class Agent:
             self.position = newPosition
 
     def attemptMoveToTarget(self, targetPos, env):
-        relativeTargetPos = targetPos - self.position
+        relativeTargetPos = targetPos - self.getPos()
         if calcdistsqr(relativeTargetPos) < self.speed ** 2:
             self.tryMove(targetPos, env)
         else:
             vect = relativeTargetPos / calcdist(relativeTargetPos)
-            newPos = self.position + vect * self.speed, env
+            newPos = self.getPos() + vect * self.speed, env
             self.tryMove(newPos, env)
 
     def eat(self, env, agents):
@@ -151,8 +150,8 @@ class Agent:
         """
         if self.food >= self.starveThresh * 5:
             # Eat if on top of food:
-            if env.get_food(self.position) > 0:
-                env.reduce_food(self.position)
+            if env.get_food(self.getPos()) > 0:
+                env.reduce_food(self.getPos())
                 self.food += 1
             # If below starving threshold:
             if (self.food < self.starveThresh):
@@ -164,7 +163,7 @@ class Agent:
                     self.attemptMoveToTarget(nestPos, env)
                 # Can't sense nest, look for closest food deposit:
                 else:
-                    foodPos = env.get_loc_of_food(self.position, vision)
+                    foodPos = env.get_loc_of_food(self.getPos(), vision)
                     if foodPos is not None:
                         self.attemptMoveToTarget(foodPos, env)
                     else:
@@ -194,7 +193,10 @@ class Agent:
         return False
 
     def getPos(self):
-        return self.position
+        if type(self) == Nest:
+            return self.position
+        else:
+            return np.array([x for x in self.position if type(x) != Environment]).flatten()
 
     def summary_vector(self):
         """
@@ -202,7 +204,7 @@ class Agent:
         [3,4,1] means a scout at (3,4).
         """
         ants = [Worker, Scout, Queen, Nest]
-        return [self.position[0], self.position[1], ants.index(type(self))]
+        return [self.getPos()[0], self.getPos()[1], ants.index(type(self))]
 
 
 class Nest(Agent):
@@ -210,11 +212,10 @@ class Nest(Agent):
     Nest class
     The class is the one and only and will manage the population of queens, worker ants and scout ants as such
     """
+    maxAge = 100000
     population = [0, 0, 0]  # Workers, Scouts, Queens
 
-    def __init__(self, position, age=None, food=80, speed=1, lastBreed=0, starveThresh=20):
-        if age is None:
-            age = np.random.randint(self.maxAge)
+    def __init__(self, position, age=1, food=80, speed=1, lastBreed=0, starveThresh=20):
         super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh)
 
     def addPopulation(self, ant):
@@ -300,14 +301,14 @@ class Queen(Agent):
             # Decide which type of agent to create:
             agentCaste = np.random.randint(0, 100)
             if agentCaste < 75:
-                newAgents[i] = type(Worker)(self.position, 0, foodForAgent, 1, 0, 20, 3, 4, 10)
+                newAgents[i] = type(Worker)(self.getPos(), 0, foodForAgent, 1, 0, 20, 3, 4, 10)
             else:
-                newAgents[i] = type(Scout)(self.position, 0, foodForAgent, 3, 0, 20, 2, 10, 5)
+                newAgents[i] = type(Scout)(self.getPos(), 0, foodForAgent, 3, 0, 20, 2, 10, 5)
 
         # Check if new queen needs to be created:
         if self.age > (2 * self.maxAge) / 3:
             # Create new queen:
-            newAgents[0] = type(Queen)(self.position, 0, foodForAgent, self.speed, -1, self.maxAge, self.starveThresh,
+            newAgents[0] = type(Queen)(self.getPos(), 0, foodForAgent, self.speed, -1, self.maxAge, self.starveThresh,
                                        breedFood=self.breedFood)
 
         return newAgents
@@ -324,7 +325,6 @@ class Worker(Agent):
             age = np.random.randint(self.maxAge)
         super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh, self.vision,
                          self.pheromoneRange)
-        self.eaten = False
 
     def move(self, env, agents):
         """
@@ -338,17 +338,17 @@ class Worker(Agent):
             - Return to nest
         """
         # If in nest:
-        if self.position == getNest(agents).position or self.inNest:
+        if np.array_equal(self.getPos(), getNest(agents).getPos()) or self.inNest:
             self.inNest = True
             if self.isCarryingFood:
                 getNest(agents).depositFood()
                 self.isCarryingFood = False
             return
         # If on top of food:
-        if env.get_food(self.position) > 0:
+        if env.get_food(self.getPos()) > 0:
             # Pick up food:
             self.isCarryingFood = True
-            env.reduce_food(self.position)
+            env.reduce_food(self.getPos())
             # Return to nest, leaving pheromones:
             self.isReturningToNest = True
             return
@@ -359,21 +359,21 @@ class Worker(Agent):
                 self.attemptMoveToTarget(trail, env)
         else:
             # Check if agent can see food:
-            foodPos = env.get_loc_of_food(self.position, self.vision)
+            foodPos = env.get_loc_of_food(self.getPos(), self.vision)
             if foodPos is not None:
-                startPos = self.position
+                startPos = self.getPos()
                 # Attempt to move to target, leaving pheromones along the way:
                 self.attemptMoveToTarget(foodPos, env)
-                self.leavePheromones(startPos, self.position, env)
+                self.leavePheromones(startPos, self.getPos(), env)
             else:
                 # If not, continue to follow the trail:
                 trail = self.followTrail(env, self.pheromoneRange, agents)
                 if trail is not None:
-                    startPos = self.position
+                    startPos = self.getPos()
                     self.attemptMoveToTarget(trail, env)
                     if self.isReturningToNest:
                         # Leave pheromones over the path:
-                        self.leavePheromones(startPos, self.position, env)
+                        self.leavePheromones(startPos, self.getPos(), env)
                 else:
                     # Try to return to nest if lost:
                     self.isReturningToNest = True
@@ -398,7 +398,7 @@ class Scout(Agent):
         self.eaten = False
 
     def lookForFood(self, env):
-        foodPos = env.get_loc_of_food(self.position, self.vision)
+        foodPos = env.get_loc_of_food(self.getPos(), self.vision)
         if foodPos is not None:
             self.attemptMoveToTarget(foodPos, env)
         else:
@@ -406,7 +406,7 @@ class Scout(Agent):
             d = np.random.rand() * 2 * np.pi  # pick a random direction
             delta = np.round(np.array([np.cos(d), np.sin(d)]) * self.speed)
 
-            self.attemptMoveToTarget(self.position + delta, env)
+            self.attemptMoveToTarget(self.getPos() + delta, env)
 
     def move(self, env, agents):
         """
@@ -426,10 +426,10 @@ class Scout(Agent):
                 self.lookForFood(env)
                 self.inNest = False
             # If on top of food:
-            if env.get_food(self.position) > 0:
+            if env.get_food(self.getPos()) > 0:
                 # Pick up food:
                 self.isCarryingFood = True
-                env.reduce_food(self.position)
+                env.reduce_food(self.getPos())
                 # Return to nest, leaving pheromones:
                 self.isReturningToNest = True
             else:
@@ -443,8 +443,10 @@ class Scout(Agent):
         if self.isReturningToNest:
             # Get nest pos:
             nestPos = getNest(agents).getPos()
+            print(getNest(agents))
+            print(getNest(agents).position)
 
-            if nestPos == self.position:
+            if np.array_equal(self.getPos(), nestPos):
                 # Deposit Food:
                 self.inNest = True
                 self.isReturningToNest = False
@@ -453,22 +455,22 @@ class Scout(Agent):
                     self.isCarryingFood = False
             else:
                 # Get direction of travel:
-                dy = float(nestPos[1]) - self.position[1]
-                dx = float(nestPos[0]) - self.position[0]
+                dy = float(nestPos[1]) - self.getPos()[1]
+                dx = float(nestPos[0]) - self.getPos()[0]
                 direction = np.tan(dy / dx)
 
                 # Move towards the nest:
                 delta = np.round(np.array([np.cos(direction), np.sin(direction)]) * self.speed)
-                startPos = self.position
-                self.tryMove(self.position + delta, env)
+                startPos = self.getPos()
+                self.tryMove(self.getPos() + delta, env)
 
                 # Place pheromones over the path:
-                self.leavePheromones(startPos, self.position, env, 0.2)
+                self.leavePheromones(startPos, self.getPos(), env, 0.2)
 
     def eat(self, env, agents):
         self.workerEat(env, agents, self.pheromoneRange, self.vision)
 
-
+"""
 class Rabbit(Agent):
     # These are the same for all rabbits.
     vision = 5  # how far it can see around current tile
@@ -477,26 +479,12 @@ class Rabbit(Agent):
     maxAge = 40  # how long do they live
 
     def __init__(self, position, age=None, food=10, speed=1, lastBreed=0):
-        """
-        A Rabbit agent. Arguments:
-        age = age of agent in iterations (default is a random value between 0 and maxAge)
-        food = how much food the agent has 'inside' (0=empty, 1=full), default = 10
-        position = x,y position of the agent (required)
-        speed = how fast it can move (tiles/iteration) (default=1)
-        lastBreed = how long ago it last reproduced (iterations) (default=0)
-        """
         if age is None:
             age = np.random.randint(self.maxAge)
         super().__init__(position, age, food, speed, lastBreed)
         self.eaten = False
 
     def move(self, env):
-        """
-        rabbit movement:
-         - if current cell has no food...
-            - will move towards cells with more food
-         - DOESN'T move away from nearby foxes
-        """
         if env.get_food(self.position) == 0:
             food_position = env.get_loc_of_grass(self.position,
                                                  self.vision)  # get the x,y location of nearby food (if any)
@@ -517,10 +505,6 @@ class Rabbit(Agent):
                 self.tryMove(self.position + delta, env)
 
     def eat(self, env, agents):
-        """
-         - will eat if there's food at location
-         - otherwise food goes down by 1.
-        """
         if env.get_food(self.position) > 0:
             env.reduce_food(self.position)
             self.food += 1
@@ -531,12 +515,6 @@ class Rabbit(Agent):
     #        plt.plot(self.position[0],self.position[1],'yx',mew=3)
 
     def die(self):
-        """
-        Returns true if it needs to expire, either due to:
-         - no food left
-         - old age
-         - being eaten
-        """
         if self.food <= 0:
             return True
         if self.age > self.maxAge:
@@ -554,22 +532,11 @@ class Fox(Agent):
     maxAge = 80  # how long do they live
 
     def __init__(self, position, age=None, food=10, speed=5, lastBreed=0):
-        """
-        A Fox agent. Arguments:
-        age = age of agent in iterations (default is random age between 0 and maxAge)
-        food = how much food the agent has 'inside' (0=empty, 1=full) (default=10)
-        position = x,y position of the agent (required)
-        speed = how fast it can move (tiles/iteration) (default=5)
-        lastBreed = how long ago it last reproduced (iterations) (default=0)
-        """
         if age is None:
             age = np.random.randint(self.maxAge)
         super().__init__(position, age, food, speed, lastBreed)
 
     def get_nearby_rabbit(self, position, vision, agents):
-        """
-        helper function, given the list of agents, find the nearest rabbit, if within 'vision', else None.
-        """
         # distances to dead rabbits and foxes set to infinity.
         sqrdistances = np.sum((np.array(
             [a.position if (type(a) == Rabbit) and (not a.die()) else np.array([-np.inf, -np.inf]) for a in
@@ -581,9 +548,6 @@ class Fox(Agent):
             return None
 
     def eat(self, env, agents):
-        """     
-        Eat nearby rabbit, with a probability that drops by distance
-        """
         near_rabbit = self.get_nearby_rabbit(self.position, self.vision,
                                              agents)  # get the x,y location of nearby rabbit (if any)
         if near_rabbit is not None:
@@ -598,21 +562,14 @@ class Fox(Agent):
                     self.food += 2  # near_rabbit.food/2
 
     def move(self, env):
-        """
-        Foxes just move randomly (but also move during call to self.eat eating to catch rabbit).
-        """
         d = np.random.rand() * 2 * np.pi  # pick a random direction
         delta = np.round(np.array([np.cos(d), np.sin(d)]) * self.speed)
         self.tryMove(self.position + delta, env)
 
     def die(self):
-        """
-        Returns true if it needs to expire, due to either:
-         - no food
-         - old age
-        """
         if self.food <= 0:
             return True
         if self.age > self.maxAge:
             return True
         return False
+"""

@@ -100,7 +100,7 @@ class Environment:
         """
         Using the value of rainfall, calculate the effect it would have on reducing the pheromone levels.
         """
-        if currentLevel is not 0:
+        if currentLevel != 0:
             decrease = self.rainFall / 5
 
             newLevel = currentLevel - decrease
@@ -117,7 +117,7 @@ class Environment:
         """
         decayValue = 0.2
 
-        if self.rainFall is not 0:
+        if self.rainFall != 0:
             # If it is raining:
             self.waterLevels = [[self.getLevelIncrease(lvl) for lvl in row] for row in self.waterLevels]
             # Also calculate the effects on pheromones:
@@ -131,12 +131,14 @@ class Environment:
         """
         Returns the pheromone amount at that point
         """
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
         return self.pheromones[int(position[0]), int(position[1])]
 
     def reduce_pheromone(self, position, amount):
         """
         Reduce the amount of pheromone at position by amount with 0 being the least it can be reduced to
         """
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
         lvl = self.pheromones[int(position[0]), int(position[1])]
         if lvl <= 0 or lvl - amount <= 0:
             self.pheromones[int(position[0]), int(position[1])] = 0
@@ -147,6 +149,7 @@ class Environment:
         """
         Increase the amount of pheromone at position by amount with 1 being the most it can be increased to
         """
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
         lvl = self.pheromones[int(position[0]), int(position[1])]
         if lvl >= 1 or lvl + amount >= 1:
             self.pheromones[int(position[0]), int(position[1])] = 1
@@ -157,12 +160,14 @@ class Environment:
         """
         Returns the amount of food at position
         """
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
         return self.food[int(position[0]), int(position[1])]
 
     def reduce_food(self, position, amount=1):
         """
         Reduce the amount of food at position by amount
         """
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
         lvl = self.food[int(position[0]), int(position[1])]
         if lvl <= 0 or lvl - amount <= 0:
             self.food[int(position[0]), int(position[1])] = 0
@@ -173,17 +178,20 @@ class Environment:
         """
         Increase the amount of food at position
         """
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
         lvl = self.food[int(position[0]), int(position[1])]
         if lvl >= self.maxfoodperunit or lvl + amount >= self.maxfoodperunit:
             self.food[int(position[0]), int(position[1])] = self.maxfoodperunit
         else:
             self.food[int(position[0]), int(position[1])] += amount
 
-    def get_loc_of_food(self, pos, sense):
-        return self.get_loc_of_target(pos, sense, True)
+    def get_loc_of_food(self, position, sense):
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
+        return self.get_loc_of_target(position, sense, True)
 
-    def get_loc_of_pheromone(self, pos, sense):
-        return self.get_loc_of_target(pos, sense, False)
+    def get_loc_of_pheromone(self, position, sense):
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
+        return self.get_loc_of_target(position, sense, False)
 
     def generateSearchSquare(self, position, vision, isFood=True):
         """
@@ -196,8 +204,9 @@ class Environment:
             target = self.food
         else:
             target = self.pheromones
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
         boundary = 10
-        pos = position + boundary
+        pos = np.array(position) + boundary
         targetWithBoundary = np.zeros(np.array(target.shape) + boundary * 2)
         targetWithBoundary[boundary:-boundary, boundary:-boundary] = target
         # we search just a circle within 'vision' tiles of 'pos' (these two commands build that search square)
@@ -214,7 +223,7 @@ class Environment:
         For example env.get_dir_of_food(np.array([3,3]),2)
         if two or more cells have the same food then it will select between them randomly.
         """
-
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
         searchSquare = self.generateSearchSquare(position, vision, isFood)
 
         if np.all(searchSquare <= 0):
@@ -231,11 +240,16 @@ class Environment:
         """
         Returns whether the position is within the environment
         """
-        position[:] = np.round(position)
-        if position[0] < 0: return False
-        if position[1] < 0: return False
-        if position[0] > self.shape[0] - 1: return False
-        if position[1] > self.shape[1] - 1: return False
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
+
+        if position[0] < 0:
+            return False
+        if position[1] < 0:
+            return False
+        if position[0] > self.shape[0] - 1:
+            return False
+        if position[1] > self.shape[1] - 1:
+            return False
 
         # this adds a 'wall' across the environment...
         # if (position[1]>5) and (position[0]>self.shape[0]/2-3) and (position[0]<self.shape[0]/2+3): return False
@@ -245,58 +259,9 @@ class Environment:
         """
         Returns the middle position of the environment
         """
-        position = [np.floor(self.shape[1] / 2), np.floor(self.shape[0] / 2)]
+        position = [int(np.floor(self.shape[1] / 2)), int(np.floor(self.shape[0] / 2))]
+        position = np.array([x for x in position if type(x) != Environment]).flatten()
         return position
-
-    def move_food(self, direction, unit):
-        """
-        Change the position of food for all units
-         - direction = the direction in which food will move
-            - N = up
-            - E = right
-            - S = down
-            - W = left
-         - unit = the number of units in which the food will move to
-        """
-        row = self.shape[0]
-        column = self.shape[1]
-        for y in range(row):
-            for x in range(column):
-                if (self.food[x, y] > 0):
-                    # Set direction then move the food towards the max possible unit
-                    match direction:
-                        case "N":
-                            # To go up so must go towards the start of the array
-                            new_y = y - unit
-                            if (new_y <= 0):
-                                new_y = 0
-                            self.food[x, y] = self.food[x, new_y]
-                            self.food[x, y] = 0
-                            exit()
-                        case "E":
-                            # To go right so must go towards the end of the subarray
-                            new_x = x + unit
-                            if (new_x >= column):
-                                new_y = column
-                            self.food[x, y] = self.food[new_x, y]
-                            self.food[x, y] = 0
-                            exit()
-                        case "S":
-                            # To go down so must go towards the end of the array
-                            new_y = y + unit
-                            if (new_y >= column):
-                                new_y = column
-                            self.food[x, y] = self.food[x, new_y]
-                            self.food[x, y] = 0
-                            exit()
-                        case "W":
-                            # To go left so must go towards the start of the subarray
-                            new_x = x - unit
-                            if (new_x <= 0):
-                                new_x = 0
-                            self.food[x, y] = self.food[new_x, y]
-                            self.food[x, y] = 0
-                            exit()
 
     def get_random_location(self):
         """
