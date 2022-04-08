@@ -101,14 +101,13 @@ class Environment:
         Using the value of rainfall, calculate the effect it would have on reducing the pheromone levels.
         """
         if currentLevel != 0:
-            decrease = self.rainFall / 5
+            decrease = int(self.rainFall * 20)
 
             newLevel = currentLevel - decrease
-
             if newLevel >= 0:
                 return newLevel
-
         return 0
+        
 
     def calculateWaterLevels(self):
         """
@@ -121,7 +120,8 @@ class Environment:
             # If it is raining:
             self.waterLevels = [[self.getLevelIncrease(lvl) for lvl in row] for row in self.waterLevels]
             # Also calculate the effects on pheromones:
-            self.pheromones = [[self.getPheromoneDecrease(lvl) for lvl in row] for row in self.pheromones]
+            pheromonelst = [[self.getPheromoneDecrease(lvl) for lvl in row] for row in self.pheromones]
+            self.pheromones = np.asarray(pheromonelst)
         else:
             # If it isn't raining:
             self.waterLevels = [[lvl - decayValue if lvl > decayValue else 0 for lvl in row]
@@ -151,11 +151,11 @@ class Environment:
         """
         position = np.array([int(x) for x in position if type(x) != Environment]).flatten()
         lvl = self.pheromones[position[0]][position[1]]
-        if lvl >= 1 or lvl + amount >= 1:
-            self.pheromones[position[0]][position[1]] = 1
+        if lvl >= 100 or lvl + amount >= 100:
+            self.pheromones[position[0]][position[1]] = 100
         else:
             self.pheromones[position[0]][position[1]] += amount
-
+        
     def get_food(self, position):
         """
         Returns the amount of food at position
@@ -204,6 +204,7 @@ class Environment:
             target = self.food
         else:
             target = self.pheromones
+
         position = np.array([x for x in position if type(x) != Environment]).flatten()
         boundary = 20
         pos = np.array(position) + boundary
@@ -214,6 +215,7 @@ class Environment:
                        int(np.floor(pos[1]) - vision):int(np.floor(pos[1]) + vision + 1)]
         searchSquare[(np.arange(-vision, vision + 1)[:, None] ** 2 + np.arange(-vision, vision + 1)[None,
                                                                      :] ** 2) > vision ** 2] = -1
+        print(np.all(searchSquare <= 0))                                   
         return searchSquare
 
     def get_loc_of_target(self, position, vision, isFood=True):
@@ -267,7 +269,7 @@ class Environment:
         """
         Returns a random location in the environment.
         """
-        return np.random.randint([0, 0], np.array(self.shape) - [5,5])
+        return np.random.randint([5, 5], np.array(self.shape) - [5,5])
 
         # if we have a more complicated environment shape, use this instead to place new food in valid location...
         # p = np.array([-10,-10])
@@ -300,5 +302,6 @@ class Environment:
         """
         Reduce the concentration of pheromones over time:
         """
-        decay = 0.1
-        self.pheromones = [[lvl - decay if lvl > decay else 0 for lvl in row] for row in self.pheromones]
+        decay = 1
+        pheromoneslst = [[lvl - decay if lvl > decay else 0 for lvl in row] for row in self.pheromones]
+        self.pheromones = np.asarray(pheromoneslst)

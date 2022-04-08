@@ -103,7 +103,7 @@ def draw_animation(fig, record, fps=20, saveto=None):
         frames=len(record),
         interval=1000 / fps, repeat=False  # in ms
     )
-    if saveto is not None: anim.save(saveto, fps=fps, extra_args=['-vcodec', 'libx264'])
+    if saveto is not None: anim.save(saveto, fps=fps)
     from IPython.display import HTML
     return HTML(anim.to_jshtml())
 

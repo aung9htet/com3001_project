@@ -58,6 +58,7 @@ class Agent:
         self.position = position
         self.speed = speed
         self.lastBreed = lastBreed
+        self.prev = -1
 
     def breed(self, agents):
         pass
@@ -70,15 +71,35 @@ class Agent:
         Get the location of the pheromones that are either as far from the nest or as close
         to the nest as possible.
         """
+        """
+        x = self.position[0]
+        y = self.position[1]
+        if ((self.prev < 0) or ((env.pheromones[x - 1,y] > current_highest) and (self.prev != 2))):
+            x += 1
+            current_highest = env.pheromones[x,y]
+            self.prev = 0
+        if ((env.pheromones[x,y + 1] > current_highest) and (self.prev != 3)):
+            y += 1
+            current_highest = env.pheromones[x,y]
+            self.prev = 1
+        if ((env.pheromones[x - 1,y] > current_highest) and (self.prev != 0)):
+            x -= 1
+            current_highest = env.pheromones[x,y]
+            self.prev = 2
+        if ((env.pheromones[x,y - 1] > current_highest) and (self.prev != 1)):
+            y -= 1
+            current_highest = env.pheromones[x,y]
+            self.prev = 3
+        self.position = current_highest
+        """
         searchSquare = env.generateSearchSquare(self.getPos(), sense, False)
-
+        
         if np.all(searchSquare <= 0):
             return None  # no target instances found
 
         positions = np.array([np.zeros(len(searchSquare)) for _ in range(len(searchSquare))])
         # Get the center index of the searchSquare (ie the agent's position):
         center = (len(searchSquare) + 1) / 2
-
         # Each position is translated from local to global coords - relative to the agent's position:
         # Positions are only calculated for squares that have >0 pheromones,
         # as otherwise there's no point in checking them.
@@ -93,7 +114,7 @@ class Agent:
         # Get distance for each position:
         distances = np.array([[calcdistsqr(pos - getNest(agents).getPos())
                                for pos in row if pos != np.nan] for row in positions])
-
+                               
         # If the agent is returning to the nest, get the pheromone closest to the nest.
         # Otherwise, get the pheromones furthest from the nest
         if self.isReturningToNest:
@@ -122,12 +143,16 @@ class Agent:
     def eat(self, env, agents):
         pass  # to implement by child class
 
-    def leavePheromones(self, start, finish, env, amount=0.1):
+    def leavePheromones(self, start, finish, env, amount=10):
         """
         Using list comprehension, leave pheromones over the path travelled by an ant.
         """
-        [[env.increase_pheromone([i, j], amount) for j in range(round(start[1]), round(finish[1]))] for i in
-         range(round(start[0]), round(finish[0]))]
+        for i in range(int(np.floor(finish[0] - start[0]))):
+            j = int(np.floor(start[1]))
+            env.increase_pheromone([i,j], 20)
+        for j in range(int(np.floor(finish[1] - start[1]))):
+            i = int(np.floor(finish[0]))
+            env.increase_pheromone([i,j], 20)
 
     def workerEat(self, env, agents, pheromoneRange, vision):
         """
@@ -333,7 +358,6 @@ class Worker(Agent):
             if self.isCarryingFood:
                 getNest(agents).depositFood()
                 self.isCarryingFood = False
-            return
         # If on top of food:
         if env.get_food(self.getPos()) > 0:
             # Pick up food:
@@ -341,12 +365,12 @@ class Worker(Agent):
             env.reduce_food(self.getPos())
             # Return to nest, leaving pheromones:
             self.isReturningToNest = True
-            return
         # If in nest and fed enough:
         if self.inNest and self.food > self.starveThresh * 2:
             trail = self.followTrail(env, self.pheromoneRange, agents)
             if trail is not None:
                 self.attemptMoveToTarget(trail, env)
+                print("moving")
         else:
             # Check if agent can see food:
             foodPos = env.get_loc_of_food(self.getPos(), self.vision)
@@ -355,6 +379,7 @@ class Worker(Agent):
                 # Attempt to move to target, leaving pheromones along the way:
                 self.attemptMoveToTarget(foodPos, env)
                 self.leavePheromones(startPos, self.getPos(), env)
+                print("move pls")
             else:
                 # If not, continue to follow the trail:
                 trail = self.followTrail(env, self.pheromoneRange, agents)
@@ -364,6 +389,7 @@ class Worker(Agent):
                     if self.isReturningToNest:
                         # Leave pheromones over the path:
                         self.leavePheromones(startPos, self.getPos(), env)
+                    print("AHEM MOVEEEEE")
                 else:
                     # Try to return to nest if lost:
                     self.isReturningToNest = True
@@ -455,7 +481,7 @@ class Scout(Agent):
                 """
 
                 # Place pheromones over the path:
-                self.leavePheromones(startPos, self.getPos(), env, 0.2)
+                self.leavePheromones(startPos, self.getPos(), env, 20)
 
     def eat(self, env, agents):
         self.workerEat(env, agents, self.pheromoneRange, self.vision)
