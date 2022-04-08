@@ -51,12 +51,14 @@ class Environment:
         self.max_percentage = max_percentage  # decide the max number of wet lands to be produced
         self.percentage_dry = percentage_dry  # decide to change wet land to dry
 
-    def causeRainFall(self, intensity=None):
+    def causeRainFall(self, intensity=None, chanceOfRain=None):
         """
         Run all methods related to causing rainfall.
         """
+        if chanceOfRain is None:
+            chanceOfRain = 70
         # Set rain intensity for current iteration:
-        self.generateRainIntensity(intensity)
+        self.generateRainIntensity(intensity, chanceOfRain)
         # Cause rain to effect environment:
         self.calculateWaterLevels()
 

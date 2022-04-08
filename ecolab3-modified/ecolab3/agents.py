@@ -65,49 +65,6 @@ class Agent:
     def move(self, env, agents):
         pass  # to implement by child class
 
-    def followTrail(self, env, sense, agents):
-        """
-        Get the location of the pheromones that are either as far from the nest or as close
-        to the nest as possible.
-        """
-        searchSquare = env.generateSearchSquare(self.getPos(), sense, False)
-
-        if np.all(searchSquare <= 0):
-            # print("all none")
-            return None  # no target instances found
-
-        positions = np.array([[[np.nan, np.nan] for _ in row] for row in searchSquare.copy()])
-        # Get the center index of the searchSquare (ie the agent's position):
-        center = int((len(searchSquare) + 1) / 2)
-
-        # Each position is translated from local to global coords - relative to the agent's position:
-        # Positions are only calculated for squares that have >0 pheromones,
-        # as otherwise there's no point in checking them.
-        for i in range(len(searchSquare)):
-            for j in range(len(searchSquare[i])):
-                if searchSquare[i][j] > 0:
-                    diff = np.array([int((center - j) * (-1)), int(center - i)])
-                    positions[i][j] = np.array([(self.getPos()[0] + diff[0]), (self.getPos()[1] + diff[1])])
-                else:
-                    positions[i][j] = np.array([np.nan, np.nan])
-
-        # Get distance for each position:
-        distances = np.array([[calcdistsqr(pos - getNest(agents).getPos()) if pos[0] != np.nan else np.nan for pos
-                               in row] for row in positions])
-
-        # If the agent is returning to the nest, get the pheromone closest to the nest.
-        # Otherwise, get the pheromones furthest from the nest
-        if self.isReturningToNest:
-            # Get the minimum distance:
-            targetDistance = np.nanargmin(distances)
-        else:
-            # Get the maximum distance:
-            targetDistance = np.nanargmax(distances)
-
-        # Return the position([x,y]) of the pheromones closest/furthest from the nest:
-        posShape = positions.shape
-        return positions.reshape(posShape[0] * posShape[1], posShape[2])[targetDistance]
-
     def tryMove(self, newPosition, env):
         if env.check_position(newPosition):
             self.position = newPosition
@@ -136,9 +93,9 @@ class Agent:
         Eat method for both scouts and workers. Placed in parent class to reduce code duplication. Cannot be the
         default method due to the Queen's eat method being different.
         - Go to the closest source of food:
-                - Nest
-                - Food deposit
-                - Food being carried (In that order)
+            - Food deposit
+            - Nest
+            - Food being carried (In that order)
         Eat if below starving threshold, or if in nest - Nest provides faster refill of food levels.
         Ants can carry more food than any individual can eat, giving a large one-time boost to food levels at the
         expense of the food being carried.
@@ -212,24 +169,17 @@ class Nest(Agent):
     def __init__(self, position, age=1, food=80, speed=1, lastBreed=0, starveThresh=20):
         super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh)
 
-    def addPopulation(self, ant):
-        """
-        Add ants to the nest 
-        """
-        if type(ant) == Worker:
-            self.population[0] += 1
-        elif type(ant) == Scout:
-            self.population[1] += 1
-        elif type(ant) == Queen:
-            self.population[2] += 1
-
     def depositFood(self, amount=2):
         self.food += amount
 
     def reduceFood(self, amount=1):
         self.food -= amount
 
+    def getFood(self):
+        return self.food
+
     def updatePopulation(self, agents):
+        self.population = [0, 0, 0]
         for agent in agents:
             if type(agent) == Worker:
                 self.population[0] += 1
@@ -247,7 +197,7 @@ class Queen(Agent):
     breedFreq = 50
     maxAge = 350
 
-    def __init__(self, position, age=None, food=10, maxfood=100, speed=1, lastBreed=0, starveThresh=5):
+    def __init__(self, position, age=None, food=20, maxfood=100, speed=1, lastBreed=0, starveThresh=5):
         if age is None:
             age = np.random.randint(self.maxAge)
         super().__init__(position, age, food, speed, lastBreed, self.maxAge, starveThresh, breedFood=self.breedFood,
@@ -297,10 +247,11 @@ class Queen(Agent):
                 newAgents[i] = type(Scout)(self.getPos(), 0, foodForAgent, 3, 0, 20, 2, 10, 5)
 
         # Check if new queen needs to be created:
-        if self.age > (2 * self.maxAge) / 3:
+        if self.age > (2 * self.maxAge) / 3 and len([agent for agent in agents if type(agent) == Queen]) <= 1:
             # Create new queen:
-            newAgents[0] = type(Queen)(self.getPos(), 0, foodForAgent, self.speed, -1, self.maxAge, self.starveThresh,
-                                       breedFood=self.breedFood)
+            newAgents.reshape(len(newAgents) + 1)
+            newAgents[len(newAgents) - 1] = type(Queen)(self.getPos(), 0, foodForAgent, self.speed, -1, self.maxAge,
+                                                        self.starveThresh, breedFood=self.breedFood)
 
         return newAgents
 
@@ -369,6 +320,49 @@ class Worker(Agent):
                 else:
                     # Try to return to nest if lost:
                     self.isReturningToNest = True
+
+    def followTrail(self, env, sense, agents):
+        """
+        Get the location of the pheromones that are either as far from the nest or as close
+        to the nest as possible.
+        """
+        searchSquare = env.generateSearchSquare(self.getPos(), sense, False)
+
+        if np.all(searchSquare <= 0):
+            # print("all none")
+            return None  # no target instances found
+
+        positions = np.array([[[np.nan, np.nan] for _ in row] for row in searchSquare.copy()])
+        # Get the center index of the searchSquare (ie the agent's position):
+        center = int((len(searchSquare) + 1) / 2)
+
+        # Each position is translated from local to global coords - relative to the agent's position:
+        # Positions are only calculated for squares that have >0 pheromones,
+        # as otherwise there's no point in checking them.
+        for i in range(len(searchSquare)):
+            for j in range(len(searchSquare[i])):
+                if searchSquare[i][j] > 0:
+                    diff = np.array([int((center - j) * (-1)), int(center - i)])
+                    positions[i][j] = np.array([(self.getPos()[0] + diff[0]), (self.getPos()[1] + diff[1])])
+                else:
+                    positions[i][j] = np.array([np.nan, np.nan])
+
+        # Get distance for each position:
+        distances = np.array([[calcdistsqr(pos - getNest(agents).getPos()) if pos[0] != np.nan else np.nan for pos
+                               in row] for row in positions])
+
+        # If the agent is returning to the nest, get the pheromone closest to the nest.
+        # Otherwise, get the pheromones furthest from the nest
+        if self.isReturningToNest:
+            # Get the minimum distance:
+            targetDistance = np.nanargmin(distances)
+        else:
+            # Get the maximum distance:
+            targetDistance = np.nanargmax(distances)
+
+        # Return the position([x,y]) of the pheromones closest/furthest from the nest:
+        posShape = positions.shape
+        return positions.reshape(posShape[0] * posShape[1], posShape[2])[targetDistance]
 
     def eat(self, env, agents):
         self.workerEat(env, agents, self.pheromoneRange, self.vision)
