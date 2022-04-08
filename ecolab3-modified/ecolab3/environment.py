@@ -121,7 +121,7 @@ class Environment:
             # If it is raining:
             self.waterLevels = [[self.getLevelIncrease(lvl) for lvl in row] for row in self.waterLevels]
             # Also calculate the effects on pheromones:
-            self.pheromones = [[self.getPheromoneDecrease(lvl) for lvl in row] for row in self.pheromones]
+            #self.pheromones = [[self.getPheromoneDecrease(lvl) for lvl in row] for row in self.pheromones]
         else:
             # If it isn't raining:
             self.waterLevels = [[lvl - decayValue if lvl > decayValue else 0 for lvl in row]
@@ -205,7 +205,7 @@ class Environment:
         else:
             target = np.array(self.pheromones * 10)
         position = np.array([x for x in position if type(x) != Environment]).flatten()
-        boundary = 20
+        boundary = 30
         pos = np.array(position) + boundary
         targetWithBoundary = np.zeros(np.array(target.shape) + boundary * 2)
         targetWithBoundary[boundary:-boundary, boundary:-boundary] = target
@@ -300,5 +300,5 @@ class Environment:
         """
         Reduce the concentration of pheromones over time:
         """
-        decay = 0.025
+        decay = 0
         self.pheromones = [[lvl - decay if lvl > decay else 0 for lvl in row] for row in self.pheromones]

@@ -307,7 +307,7 @@ class Queen(Agent):
 
 class Worker(Agent):
     vision = 4  # How many squares the agent can see
-    pheromoneRange = 10  # How many squares the agent can see specifically pheromones
+    pheromoneRange = 20  # How many squares the agent can see specifically pheromones
     isCarryingFood = False  # Whether or not the agent is carrying a unit of food
     maxAge = 20
 
@@ -336,6 +336,7 @@ class Worker(Agent):
                 self.isCarryingFood = False
             if self.isReturningToNest:
                 self.isReturningToNest = False
+                
         # If on top of food:
         if env.get_food(self.getPos()) > 0:
             # Pick up food:

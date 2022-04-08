@@ -6,7 +6,7 @@ import matplotlib.animation as animation
 from matplotlib import rc
 
 
-def run_ecolab(env, agents, Niterations=1000, earlystop=True):
+def run_ecolab(env, agents, Niterations=100, earlystop=True):
     """
     Run ecolab, this applies the rules to the agents and the environment. It records
     the grass array and the locations (and type) of agents in a list it returns.
