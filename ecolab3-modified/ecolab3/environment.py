@@ -267,7 +267,7 @@ class Environment:
         """
         Returns a random location in the environment.
         """
-        return np.random.randint([0, 0], self.shape)
+        return np.random.randint([0, 0], np.array(self.shape) - [5,5])
 
         # if we have a more complicated environment shape, use this instead to place new food in valid location...
         # p = np.array([-10,-10])
