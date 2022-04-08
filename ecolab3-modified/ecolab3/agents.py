@@ -73,11 +73,12 @@ class Agent:
         searchSquare = env.generateSearchSquare(self.getPos(), sense, False)
 
         if np.all(searchSquare <= 0):
+            # print("all none")
             return None  # no target instances found
 
-        positions = np.array([np.zeros(len(searchSquare)) for _ in range(len(searchSquare))])
+        positions = np.array([[[np.nan, np.nan] for _ in row] for row in searchSquare.copy()])
         # Get the center index of the searchSquare (ie the agent's position):
-        center = (len(searchSquare) + 1) / 2
+        center = int((len(searchSquare) + 1) / 2)
 
         # Each position is translated from local to global coords - relative to the agent's position:
         # Positions are only calculated for squares that have >0 pheromones,
@@ -85,14 +86,14 @@ class Agent:
         for i in range(len(searchSquare)):
             for j in range(len(searchSquare[i])):
                 if searchSquare[i][j] > 0:
-                    diff = np.array((center - j) * (-1), center - i)
-                    positions[i][j] = np.array(self.getPos()[0] + diff[0], self.getPos()[1] + diff[1])
+                    diff = np.array([int((center - j) * (-1)), int(center - i)])
+                    positions[i][j] = np.array([(self.getPos()[0] + diff[0]), (self.getPos()[1] + diff[1])])
                 else:
-                    positions[i][j] = np.nan
+                    positions[i][j] = np.array([np.nan, np.nan])
 
         # Get distance for each position:
-        distances = np.array([[calcdistsqr(pos - getNest(agents).getPos())
-                               for pos in row if pos != np.nan] for row in positions])
+        distances = np.array([[calcdistsqr(pos - getNest(agents).getPos()) if pos[0] != np.nan else np.nan for pos
+                               in row] for row in positions])
 
         # If the agent is returning to the nest, get the pheromone closest to the nest.
         # Otherwise, get the pheromones furthest from the nest
@@ -104,7 +105,8 @@ class Agent:
             targetDistance = np.nanargmax(distances)
 
         # Return the position([x,y]) of the pheromones closest/furthest from the nest:
-        return positions.flatten()[targetDistance]
+        posShape = positions.shape
+        return positions.reshape(posShape[0] * posShape[1], posShape[2])[targetDistance]
 
     def tryMove(self, newPosition, env):
         if env.check_position(newPosition):
@@ -122,7 +124,7 @@ class Agent:
     def eat(self, env, agents):
         pass  # to implement by child class
 
-    def leavePheromones(self, start, finish, env, amount=0.1):
+    def leavePheromones(self, start, finish, env, amount=0.2):
         """
         Using list comprehension, leave pheromones over the path travelled by an ant.
         """
@@ -141,7 +143,7 @@ class Agent:
         Ants can carry more food than any individual can eat, giving a large one-time boost to food levels at the
         expense of the food being carried.
         """
-        if self.food >= self.starveThresh * 5:
+        if self.food <= self.starveThresh * 4:
             # Eat if on top of food:
             if env.get_food(self.getPos()) > 0:
                 env.reduce_food(self.getPos())
@@ -179,6 +181,8 @@ class Agent:
             - no food left
             - old age
         """
+        if type(self) == Nest:
+            return False
         if self.food <= 0:
             return True
         if self.age > self.maxAge:
@@ -279,13 +283,10 @@ class Queen(Agent):
         Using the information from the Nest, decide which type of ant the new agent should be.
         """
         # Number of new agents to create:
-        numAgents = 20
+        numAgents = 1
         newAgents = np.empty(numAgents, dtype=Agent)
         # The portion of the Queen's food to give to the new agents:
         foodForAgent = (self.food / 2) / numAgents
-        # How much food is stored in the nest in comparison to the nest's starve threshold:
-        nest = getNest(agents)
-        foodRatio = nest.food / nest.starveThresh
 
         for i in range(len(newAgents)):
             # Decide which type of agent to create:
@@ -333,7 +334,8 @@ class Worker(Agent):
             if self.isCarryingFood:
                 getNest(agents).depositFood()
                 self.isCarryingFood = False
-            return
+            if self.isReturningToNest:
+                self.isReturningToNest = False
         # If on top of food:
         if env.get_food(self.getPos()) > 0:
             # Pick up food:
@@ -341,7 +343,6 @@ class Worker(Agent):
             env.reduce_food(self.getPos())
             # Return to nest, leaving pheromones:
             self.isReturningToNest = True
-            return
         # If in nest and fed enough:
         if self.inNest and self.food > self.starveThresh * 2:
             trail = self.followTrail(env, self.pheromoneRange, agents)
@@ -394,7 +395,7 @@ class Scout(Agent):
         else:
             d = np.random.rand() * 2 * np.pi  # pick a random direction
             delta = np.round(np.array([np.cos(d), np.sin(d)]) * self.speed)
-            self.attemptMoveToTarget([self.getPos() + delta], env)
+            self.attemptMoveToTarget(self.getPos() + delta, env)
 
     def move(self, env, agents):
         """
@@ -441,21 +442,11 @@ class Scout(Agent):
                     self.isCarryingFood = False
             else:
                 startPos = self.getPos()
-                self.attemptMoveToTarget(nestPos, env)
-                # Get direction of travel:
-                """
-                dy = float(nestPos[1]) - self.getPos()[1]
-                dx = float(nestPos[0]) - self.getPos()[0]
-                direction = np.tan(dy / dx)
-
                 # Move towards the nest:
-                delta = np.round(np.array([np.cos(direction), np.sin(direction)]) * self.speed)
-                startPos = self.getPos()
-                self.tryMove(self.getPos() + delta, env)
-                """
+                self.attemptMoveToTarget(nestPos, env)
 
                 # Place pheromones over the path:
-                self.leavePheromones(startPos, self.getPos(), env, 0.2)
+                self.leavePheromones(startPos, self.getPos(), env, 0.4)
 
     def eat(self, env, agents):
         self.workerEat(env, agents, self.pheromoneRange, self.vision)

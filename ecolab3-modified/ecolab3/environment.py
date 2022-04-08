@@ -51,12 +51,12 @@ class Environment:
         self.max_percentage = max_percentage  # decide the max number of wet lands to be produced
         self.percentage_dry = percentage_dry  # decide to change wet land to dry
 
-    def causeRainFall(self):
+    def causeRainFall(self, intensity=None):
         """
         Run all methods related to causing rainfall.
         """
         # Set rain intensity for current iteration:
-        self.generateRainIntensity()
+        self.generateRainIntensity(intensity)
         # Cause rain to effect environment:
         self.calculateWaterLevels()
 
@@ -203,7 +203,7 @@ class Environment:
         if isFood:
             target = self.food
         else:
-            target = self.pheromones
+            target = np.array(self.pheromones * 10)
         position = np.array([x for x in position if type(x) != Environment]).flatten()
         boundary = 20
         pos = np.array(position) + boundary
@@ -300,5 +300,5 @@ class Environment:
         """
         Reduce the concentration of pheromones over time:
         """
-        decay = 0.1
+        decay = 0.025
         self.pheromones = [[lvl - decay if lvl > decay else 0 for lvl in row] for row in self.pheromones]
