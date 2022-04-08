@@ -6,7 +6,7 @@ import matplotlib.animation as animation
 from matplotlib import rc
 
 
-def run_ecolab(env, agents, Niterations=1000, earlystop=True):
+def run_ecolab(env, agents, Niterations=1000, earlystop=True, intensity=None, chanceOfRain=None):
     """
     Run ecolab, this applies the rules to the agents and the environment. It records
     the grass array and the locations (and type) of agents in a list it returns.
@@ -40,10 +40,11 @@ def run_ecolab(env, agents, Niterations=1000, earlystop=True):
         # Decrease pheromone levels:
         env.fadePheromones()
         # Do rainfall:
-        env.causeRainFall()
+        env.causeRainFall(intensity, chanceOfRain)
 
         # record the grass and agent locations (and types) for later plotting & analysis
-        record.append({'food': env.food.copy(), 'pheromones': env.pheromones.copy(),
+        record.append({'food': env.food.copy(), 'storedFood': [agent for agent in agents
+                                                               if type(agent) == Nest][0].getFood(),
                        'agents': np.array([a.summary_vector() for a in agents])})
 
         # stop early if we run out of rabbits and foxes
@@ -111,7 +112,7 @@ def draw_animation(fig, record, fps=20, saveto=None):
 def get_agent_counts(record):
     """
     Returns the number of workers, scouts, queens, nests, & food in an N x 5 numpy array
-    the three columns are (Worker, Scout, Queen, Nest, Food).
+    the five columns are (Worker, Scout, Queen, NestFood, Food).
     """
     counts = []
     for r in record:
@@ -120,12 +121,11 @@ def get_agent_counts(record):
             nW = 0
             nS = 0
             nQ = 0
-            nN = 0
         else:
             nW = np.sum(ags[:, -1] == 0)
             nS = np.sum(ags[:, -1] == 1)
             nQ = np.sum(ags[:, -1] == 1)
-            nN = np.sum(ags[:, -1] == 1)
+        nN = r['storedFood']
         nF = np.sum(r['food'])
         counts.append([nW, nS, nQ, nN, nF])
     counts = np.array(counts)
