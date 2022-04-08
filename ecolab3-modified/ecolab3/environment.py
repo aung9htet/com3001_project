@@ -20,7 +20,7 @@ def argmax_2darray(a):
 
 
 class Environment:
-    def __init__(self, shape=None, startfood=40, maxfood=80, maxfoodperunit=20, droprate=10, amountPerDrop=10,
+    def __init__(self, shape=None, startfood=40, maxfood=100, maxfoodperunit=20, droprate=10, amountPerDrop=10,
                  max_percentage=0, rain_intensity=0, percentage_dry=0):
         """
         Create the environment
@@ -304,5 +304,5 @@ class Environment:
         """
         Reduce the concentration of pheromones over time:
         """
-        decay = 0.1
+        decay = 0.05
         self.pheromones = [[lvl - decay if lvl > decay else 0 for lvl in row] for row in self.pheromones]
