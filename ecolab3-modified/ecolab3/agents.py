@@ -392,11 +392,9 @@ class Scout(Agent):
         if foodPos is not None:
             self.attemptMoveToTarget(foodPos, env)
         else:
-            # no food in range, pick a random direction...
             d = np.random.rand() * 2 * np.pi  # pick a random direction
             delta = np.round(np.array([np.cos(d), np.sin(d)]) * self.speed)
-
-            self.attemptMoveToTarget(self.getPos() + delta, env)
+            self.attemptMoveToTarget([self.getPos() + delta], env)
 
     def move(self, env, agents):
         """

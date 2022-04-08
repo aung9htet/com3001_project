@@ -205,14 +205,13 @@ class Environment:
         else:
             target = self.pheromones
         position = np.array([x for x in position if type(x) != Environment]).flatten()
-        boundary = 10
+        boundary = 20
         pos = np.array(position) + boundary
         targetWithBoundary = np.zeros(np.array(target.shape) + boundary * 2)
         targetWithBoundary[boundary:-boundary, boundary:-boundary] = target
         # we search just a circle within 'vision' tiles of 'pos' (these two commands build that search square)
-        searchSquare = targetWithBoundary[int(pos[0] - vision):int(pos[0] + vision + 1),
-                       int(pos[1] - vision):int(pos[1] + vision + 1)]
-
+        searchSquare = targetWithBoundary[int(np.floor(pos[0]) - vision):int(np.floor(pos[0]) + vision + 1),
+                       int(np.floor(pos[1]) - vision):int(np.floor(pos[1]) + vision + 1)]
         searchSquare[(np.arange(-vision, vision + 1)[:, None] ** 2 + np.arange(-vision, vision + 1)[None,
                                                                      :] ** 2) > vision ** 2] = -1
         return searchSquare
