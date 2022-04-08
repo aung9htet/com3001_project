@@ -50,6 +50,7 @@ class Environment:
         self.rainFall = 0  # Intensity of rainfall, 0 being none, 1 being heavy
         self.max_percentage = max_percentage  # decide the max number of wet lands to be produced
         self.percentage_dry = percentage_dry  # decide to change wet land to dry
+        self.status_reduce_pher = True #decide to reduce pheromone or not
 
     def causeRainFall(self, intensity=None, chanceOfRain=None):
         """
@@ -123,7 +124,8 @@ class Environment:
             # If it is raining:
             self.waterLevels = [[self.getLevelIncrease(lvl) for lvl in row] for row in self.waterLevels]
             # Also calculate the effects on pheromones:
-            #self.pheromones = [[self.getPheromoneDecrease(lvl) for lvl in row] for row in self.pheromones]
+            if self.status_reduce_pher:
+                self.pheromones = [[self.getPheromoneDecrease(lvl) for lvl in row] for row in self.pheromones]
         else:
             # If it isn't raining:
             self.waterLevels = [[lvl - decayValue if lvl > decayValue else 0 for lvl in row]
