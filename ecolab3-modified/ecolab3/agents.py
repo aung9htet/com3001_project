@@ -408,13 +408,11 @@ class Scout(Agent):
         # If returning to nest:
         if self.isReturningToNest:
             self.returnToNest(env, agents)
-            print("4")
         else:
             # If in nest & in a state to search for food:
             if self.inNest and self.food > self.starveThresh * 2:
                 self.lookForFood(env)
                 self.inNest = False
-                print("1")
             # If on top of food:
             if env.get_food(self.getPos()) > 0:
                 # Pick up food:
@@ -422,10 +420,8 @@ class Scout(Agent):
                 env.reduce_food(self.getPos())
                 # Return to nest, leaving pheromones:
                 self.isReturningToNest = True
-                print("2")
             else:
                 self.lookForFood(env)
-                print("3")
 
     def returnToNest(self, env, agents):
         """
